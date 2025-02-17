@@ -6,13 +6,13 @@ IconsFolder := AuthorDir "\authorIcons"
 
 ; Define your links here
 links := { 
-    LinkedIn: "www.linkedin.com/in/alexofrhodes/",
     Github: "https://github.com/alexofrhodes/",
+    Gmail: "mailto:anastasioualex@gmail.com?subject=" A_ScriptName "&body=Hi! I would like to talk about ...",
+    BuyMeACoffee: "https://www.buymeacoffee.com/AlexOfRhodes",
     WebSite: "https://alexofrhodes.github.io/",
     YouTube: "https://www.youtube.com/@alexofrhodes",
-    InstaGram: "https://www.instagram.com/alexofrhodes/",
-    BuyMeACoffee: "https://www.buymeacoffee.com/AlexOfRhodes",
-    Gmail: "mailto:anastasioualex@gmail.com?subject=" A_ScriptName "&body=Hi! I would like to talk about ..."
+    LinkedIn: "www.linkedin.com/in/alexofrhodes/",
+    InstaGram: "https://www.instagram.com/alexofrhodes/"
 }
 
 ; Create an ImageList for icons
