@@ -404,9 +404,10 @@ ClipChanged(DataType) {
         global 
         currentIndex := lbLogFiles.Value
         selectedFile := lbLogFiles.Text . ".txt"
-        if (selectedFile != "") {
+        if (currentIndex != 0) {
             filePath := historyDir "\" selectedFile
             editClipboard.Value := FileRead(filePath)
+            A_Clipboard := editClipboard.Value
         }
     }
   
@@ -806,41 +807,59 @@ ClipChanged(DataType) {
             currentIndex := newIndex ;update the global currentIndex
             fileToRead := historyDir . "\" . LogFiles[currentIndex] .  ".txt"
             A_Clipboard := FileRead(fileToRead)
-            try editClipboard.Value := A_Clipboard
+            editClipboard.Value := A_Clipboard
             lbLogFiles.Choose(currentIndex)
         } else {
             MsgBox("No more history in this direction.",,0x1000)
         }
     }
-
     Paste(*) {
         global
         flag := WinActive(myGui.hwnd)
         if flag
             toggleGUI()
-
+    
+        ; Get the selected text from editClipboard
+        originalClipboard := A_Clipboard  ; Store current clipboard
+        selectedText := EditGetSelectedText(editClipboard.hwnd)
+    
+        if selectedText {
+            A_Clipboard := selectedText  ; Temporarily set clipboard to selected text
+            pasteContent := selectedText
+        } else {
+            pasteContent := A_Clipboard
+        }
+    
         ; Get selected method from DropDownList
         pasteMethod := ddlPasteMethod.Text
-
+    
         ; Use the selected method for pasting
         if (pasteMethod = "Ctrl+V") {
             Send("{ctrl Down}v{ctrl up}")
         } else if (pasteMethod = "SendText") {
-            SendText(A_Clipboard) ; Send raw clipboard content
+            SendText(pasteContent)  ; Send raw text
         } else if (pasteMethod = "SendInput") {
-            SendInput(A_Clipboard) ; Simulate user typing
+            SendInput(pasteContent)  ; Simulate typing
         }
-
-        selectedMode := ddlAfterPasteAction.Text  ; Get selected option
+    
+        ; Handle cycling through history
+        selectedMode := ddlAfterPasteAction.Text
         if (selectedMode = "Previous") {
             LoopHistory(1)
         } else if (selectedMode = "Next") {
             LoopHistory(-1)
         }
-
+    
+        ; Restore the original clipboard if it was modified
+        if (A_Clipboard != pasteContent and selectedMode = "None") {
+            ; Sleep 100  ; Give some time for the paste to complete
+            A_Clipboard := originalClipboard
+        }
+    
         if flag
             toggleGUI()
     }
+    
 
 }
 ; ====== MAIN clipboard mod functions  ====== 
