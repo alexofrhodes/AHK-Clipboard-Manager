@@ -19,16 +19,19 @@ links := {
 imageList := Map()
 
 ; Load icons from the AuthorIcons folder
+imageList["Author"] := IconsFolder "\Author.ico"
 for name in links.ownprops() {
     iconPath := IconsFolder "\" name ".ico"
     if FileExist(iconPath)
         imageList[name] := iconPath
 }
 
+
 addAuthorTray()  ; Automatically add links to the tray menu
 
 addAuthorTray(*) {
-    TrayIcon := StrReplace(IconsFolder "\" . A_ScriptName, ".ahk", ".ico")
+    ; TrayIcon := StrReplace(IconsFolder "\" . A_ScriptName, ".ahk", ".ico")
+    TrayIcon := StrReplace(A_ScriptDir "\" . A_ScriptName, ".ahk", ".ico")
     if FileExist(TrayIcon)
         TraySetIcon(TrayIcon)
 
@@ -58,6 +61,8 @@ addAuthorMenubar(gui) {
     } else {
         AuthorMenu := MyMenuBar.Author
     }
+
+    MyMenuBar.SetIcon("Author", imageList["Author"]) ; , IconNumber, IconWidth)
 
     ; Add links under "Author" menu with icons
     for name, url in links.ownprops() {

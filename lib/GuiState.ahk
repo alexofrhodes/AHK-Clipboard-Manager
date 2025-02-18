@@ -6,13 +6,16 @@ VERSION := 1.0
 RegExMatch(A_ScriptName, "^(.*?)\.", &basename)
 global WINTITLE := basename[1] " " VERSION
 global defaultINIfile := A_ScriptDir "\" basename[1] ".ini" 
+global guiName := ""
+global iniFile := ""
+global Preset := "Default"
 
 ListLines(false)
 
 ; only guiName is required, may be myGui.Title (or myGui.name?)
 
 GuiSaveState(guiName := "", inifile := "", Preset := 1, afterThisControl := "", beforeThisControl := "") {
-    
+    global
     if (inifile = "") 
         inifile := defaultINIfile
   
@@ -20,8 +23,7 @@ GuiSaveState(guiName := "", inifile := "", Preset := 1, afterThisControl := "", 
         MsgBox "GuiSaveState: guiName is required, may be myGui.Title or myGui.name",, 0x1000
         return
     }
-       
-    
+          
     oList_controls := WinGetControls(guiName)
     
     flag := (afterThisControl = "" ? 0 : 1)
@@ -45,7 +47,11 @@ GuiSaveState(guiName := "", inifile := "", Preset := 1, afterThisControl := "", 
         value := RegExReplace(ctrl.Value, "`n", "|")
         IniWrite(value, inifile, guiName "-" Preset, ctrl.Name)
     }
-    
+    GuiSavePosition()
+}
+
+GuiSavePosition(*){
+    global
     winstate := WinGetMinMax(guiName)
     if (winstate != -1) {
         x := y := width := height := ""
@@ -54,8 +60,8 @@ GuiSaveState(guiName := "", inifile := "", Preset := 1, afterThisControl := "", 
         IniWrite(y, inifile, guiName "-" Preset, "winy")
     }
 }
-
 GuiLoadState(guiName := "", inifile := "", Preset := 1) {
+    global
     if (guiName = ""){
         MsgBox "GuiLoadState: guiName is required, may be myGui.Title or myGui.name",, 0x1000
         return
@@ -85,7 +91,11 @@ GuiLoadState(guiName := "", inifile := "", Preset := 1) {
                 ctrl.value := value
         }
     }
-    
+    guiLoadPosition()
+}
+
+guiLoadPosition(*){
+    global
     winx := IniRead(inifile, guiName "-" Preset, "winx", 0)
     winy := IniRead(inifile, guiName "-" Preset, "winy", 0)
     
@@ -98,7 +108,6 @@ GuiLoadState(guiName := "", inifile := "", Preset := 1) {
 
     myGui.Show("x" winx " y" winy)
 }
-
 
 GuiDeleteState(GuiName, IniFile := "" , Preset:=1) {
        
@@ -131,4 +140,13 @@ GuiResetState(guiName := "") {
         else 
             ctrl.Value := "" ; Clear Edit fields and other controls
     }
+}
+
+HasVal(haystack, needle) {
+	if !(IsObject(haystack)) || (haystack.Length() = 0)
+		return 0
+	for index, value in haystack
+		if (value = needle)
+			return index
+	return 0
 }
