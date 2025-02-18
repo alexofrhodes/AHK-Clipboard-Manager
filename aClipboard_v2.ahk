@@ -1,8 +1,6 @@
 
 
 ; @TODO consider using richedit to highlight search terms in the clipboard edit control? 
-; @TODO in PASTE cycle next/previous? 
-
 
 ; ====== INFO ====== 
 {

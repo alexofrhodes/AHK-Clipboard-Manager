@@ -1,8 +1,9 @@
 #Requires AutoHotkey v2
 
 ; Determine the directory of the currently running script file (Author.ahk)
-AuthorDir := DirExist(A_LineFile) ? A_LineFile : RegExReplace(A_LineFile, "\\[^\\]+$")
-IconsFolder := AuthorDir "\authorIcons"
+; AuthorDir := DirExist(A_LineFile) ? A_LineFile : RegExReplace(A_LineFile, "\\[^\\]+$")
+; IconsFolder := AuthorDir . "\authorIcons"
+IconsFolder := A_ScriptDir "\lib\authorIcons"
 
 ; Define your links here
 links := { 
@@ -11,7 +12,7 @@ links := {
     BuyMeACoffee: "https://www.buymeacoffee.com/AlexOfRhodes",
     WebSite: "https://alexofrhodes.github.io/",
     YouTube: "https://www.youtube.com/@alexofrhodes",
-    LinkedIn: "www.linkedin.com/in/alexofrhodes/",
+    LinkedIn: "https://www.linkedin.com/in/alexofrhodes/",
     InstaGram: "https://www.instagram.com/alexofrhodes/"
 }
 
@@ -31,7 +32,7 @@ addAuthorTray()  ; Automatically add links to the tray menu
 
 addAuthorTray(*) {
     ; TrayIcon := StrReplace(IconsFolder "\" . A_ScriptName, ".ahk", ".ico")
-    TrayIcon := StrReplace(A_ScriptDir "\" . A_ScriptName, ".ahk", ".ico")
+    TrayIcon := StrReplace(A_ScriptDir "\" A_ScriptName (A_IsCompiled ? ".exe" : ".ahk"), ".ahk", ".ico")
     if FileExist(TrayIcon)
         TraySetIcon(TrayIcon)
 
