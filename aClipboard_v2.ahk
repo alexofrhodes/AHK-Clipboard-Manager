@@ -127,20 +127,20 @@ ClipChanged(DataType) {
         global
 
         ; ====== FIND/REPLACE SECTION ======
-        btnFind := myGui.Add("Button", "w120", "Find")
+        btnFind := myGui.Add("Button", "w150", "Find")
         btnFind.Enabled := false
 
-        editFind := myGui.Add("Edit", "w250 x+m veditFind", "") 
+        editFind := myGui.Add("Edit", "w350 x+m veditFind", "") 
 
-        btnSave := myGui.Add("Button", "ys w120", "Save")
+        btnSave := myGui.Add("Button", "ys ", "Save")
         btnSave.OnEvent("Click", SaveRegexValues)
 
-        btnReplace := myGui.Add("Button", "xm w120", "Replace")
+        btnReplace := myGui.Add("Button", "xm w150", "Replace")
         btnReplace.OnEvent("Click", (*)=> ExecuteFunction(Replace))
 
-        editReplace := myGui.Add("Edit", "x+m section w250 veditReplace") 
+        editReplace := myGui.Add("Edit", "x+m section w350 veditReplace") 
 
-        btnLoad := myGui.Add("Button", "ys w120", "Load")
+        btnLoad := myGui.Add("Button", "ys", "Load")
         btnLoad.OnEvent("Click", LoadRegexValues)
 
         chRegex := myGui.Add("Checkbox", "xs vchRegex", "Regex")
@@ -153,7 +153,7 @@ ClipChanged(DataType) {
         lblStartingPos := myGui.Add("Text", "ys", "Start")
         editStartingPos := myGui.Add("Edit", "x+m ys-1 w20 h16 veditStartingPos", "")
 
-        Separator1 := myGui.Add("Text", "xm h1 w500 0x10") ; Separator
+        Separator1 := myGui.Add("Text", "xm h1 w550 0x10") ; Separator
 
         ; ====== MENU BAR ======
         MyArray := [  "Copy"
@@ -185,37 +185,31 @@ ClipChanged(DataType) {
 
         ; ====== Append Options ======
 
-        myGui.Add("Text", "xm section w120", "Append/Prepend Opts:")
+        myGui.Add("Text", "xm section w40", "Sep:")
         MyArray := [  "Linebreak"
                     , "Space"
                     , "Tab"
                     ]
         
-        AppendBy := myGui.Add("DropDownList","w120 vAppendBy", MyArray)                
-        myGui.Add("Text", "xs h1 w120 0x10")    ; separator
+        AppendBy := myGui.Add("DropDownList","x+m w80 vAppendBy", MyArray)                
 
-        MyGui.Add("Text", "xs", "Paste Method:")
+        MyGui.Add("Text", "xs w45", "Paste:")
         pasteMethods := ["Ctrl+V", "SendText", "SendInput"]
-        ddlPasteMethod := MyGui.Add("DropDownList", "xs w120 vddlPasteMethod", pasteMethods)
+        ddlPasteMethod := MyGui.Add("DropDownList", "x+m w75 vddlPasteMethod", pasteMethods)
         ddlPasteMethod.Choose(1)                ; Default to Ctrl+V
         
-        MyGui.Add("Text", "xs", "After Paste:")
-        ddlAfterPasteAction := myGui.Add("DropDownList", "xs w120 vddlAfterPasteAction", ["None", "Previous", "Next"])
+        MyGui.Add("Text", "xs w45", "Cycle:")
+        ddlAfterPasteAction := myGui.Add("DropDownList", "x+m w75 vddlAfterPasteAction", ["None", "Previous", "Next"])
         ddlAfterPasteAction.choose(1)
         
-        myGui.Add("Text", "xs h1 w120 0x10")    ; separator
-
         ; ====== ACTION CHECKBOXES ====== 
 
-        myGui.Add("Text", "xm w120", "Select Actions:")
-
         ; Button to execute checked functions
-        btnGetChecked := myGui.Add("Button", "xs w120", "Apply Selected")
+        btnGetChecked := myGui.Add("Button", "xs w150", "Apply Selected")
         btnGetChecked.OnEvent("Click", applyActionCheckboxes)
 
         AutoApply := myGui.Add("Checkbox", "xs vchAutoApply", "Auto Apply")
-        myGui.Add("Text", "xs h1 w120 0x10") ; separator
-        btnToggle := myGui.AddButton("w120 ", "Toggle Actions")
+        btnToggle := myGui.AddButton("w150 ", "Toggle Actions")
         btnToggle.OnEvent("Click", ToggleActions)
         
         ;===============================================================================
@@ -231,14 +225,33 @@ ClipChanged(DataType) {
                     , "ReverseWords" 
                     ]
         
-        ;vCh + Value is used to assign a name, to use with the GuiState functions
-        For value in MyArray
-            actionCheckboxes.Push(myGui.Add("Checkbox", "xs vch" value, value)) 
-        myGui.Add("Text", "ys section w120", "Log Files")
-        myGui.Add("Button", "xs w55", "Del Sel").OnEvent("Click", DeleteSelectedLogFile)
-        myGui.Add("Button", "x+m w55", "Del All").OnEvent("Click", DeleteAllLogFiles)
+        ; MyArray := []
+        ; Loop 50  ; Creates 50 test items
+        ;     MyArray.Push("test" A_Index)
+        
+        ItemsPerTab := 20
+        TotalTabs := Ceil(MyArray.Length / ItemsPerTab)
+        
+        tabNames := []
+        Loop TotalTabs
+            tabNames.Push("Tab " A_Index)     
 
-        btnRename := myGui.Add("Button", "xs w120", "Rename")
+        ;https://www.autohotkey.com/docs/v2/misc/Styles.htm#Tab
+        tabControl := myGui.Add("Tab3", "vTabControl xs w150 0x80 0x100 R" ItemsPerTab , tabNames)
+        actionCheckboxes := []
+        
+        For index, value in MyArray {
+            tabIndex := Ceil(index / ItemsPerTab)
+            tabControl.UseTab(tabIndex)  ; Switch to the corresponding tab     
+            ; vCh + Value is used to assign a name, to use with the GuiState functions
+            actionCheckboxes.Push(myGui.Add("Checkbox", " vch" value, value))
+        }
+        tabControl.UseTab()
+
+        myGui.Add("Button", "ys section w70", "Del Sel").OnEvent("Click", DeleteSelectedLogFile)
+        myGui.Add("Button", "x+m w70", "Del All").OnEvent("Click", DeleteAllLogFiles)
+
+        btnRename := myGui.Add("Button", "xs w150", "Rename")
         btnRename.OnEvent("Click", RenameLogFile)
 
         myGui.Add("Text", "xs w120", "Filter")
@@ -260,7 +273,11 @@ ClipChanged(DataType) {
         if (A_Clipboard != editClipboard.Text)
             SaveClipboardToLogFile()
     }
-
+    
+    ; test1(*){
+    ;     MsgBox("test1")
+    ; }
+    
     Help(*) {
         HelpHTML := "
         (
@@ -313,7 +330,7 @@ ClipChanged(DataType) {
     }
     
     showForm(*) {
-        myGui.Show("NoActivate x5000 y5000") ;show offscreen to avoid fliccker from guiLoadState
+        myGui.Show("NoActivate x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
         guiManager.LoadState()
     }
 
