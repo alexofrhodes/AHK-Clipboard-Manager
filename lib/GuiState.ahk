@@ -1,152 +1,134 @@
-#Requires AutoHotkey v2.0
-#SingleInstance Force
+; Change Log:
+; 2025-02-19: Changed to Class
 
-VERSION := 1.0
+;=======================================================================
+; usasage:
 
-RegExMatch(A_ScriptName, "^(.*?)\.", &basename)
-global WINTITLE := basename[1] " " VERSION
-global defaultINIfile := A_ScriptDir "\" basename[1] ".ini" 
-global guiName := ""
-global iniFile := ""
-global Preset := "Default"
+; #include GuiState.ahk
+;; create gui and controls first
+; global guiManager := GuiState(myGui, "GuiState.ini", 1)      
+;=======================================================================
 
-ListLines(false)
+class GuiState {
+    myGui := ""
+    guiName := ""   
+    iniFile := ""
+    preset := 1
 
-; only guiName is required, may be myGui.Title (or myGui.name?)
 
-GuiSaveState(guiName := "", inifile := "", Preset := 1, afterThisControl := "", beforeThisControl := "") {
-    global
-    if (inifile = "") 
-        inifile := defaultINIfile
-  
-    if (guiName = ""){
-        MsgBox "GuiSaveState: guiName is required, may be myGui.Title or myGui.name",, 0x1000
-        return
+    __New(myGui := "", iniFile := "", preset := 1) {
+        this.myGui := myGui
+        this.guiName := myGui.Title
+        this.iniFile := (iniFile = "" ? A_ScriptDir "\" this.guiName ".ini" : iniFile)
+        this.preset := preset
     }
-          
-    oList_controls := WinGetControls(guiName)
-    
-    flag := (afterThisControl = "" ? 0 : 1)
-    
-    for n, ctrlName in oList_controls {
-        ctrl := myGui[ctrlname]
-        if !IsObject(ctrl) 
-            continue
-        if ctrl.Name = ""
-            continue
-        
-        if (afterThisControl = ctrl.Name) {
-            flag := 0
-            continue
+
+    SaveState(afterThisControl := "", beforeThisControl := "") {
+        if (this.guiName = "") {
+            MsgBox "GuiSaveState: guiName is required, may be myGui.Title",, 0x1000
+            return
         }
-        if (flag)
-            continue
-        if (beforeThisControl = ctrl.Name)
-            break
-        
-        value := RegExReplace(ctrl.Value, "`n", "|")
-        IniWrite(value, inifile, guiName "-" Preset, ctrl.Name)
-    }
-    GuiSavePosition()
-}
 
-GuiSavePosition(*){
-    global
-    winstate := WinGetMinMax(guiName)
-    if (winstate != -1) {
-        x := y := width := height := ""
-        WinGetPos(&x, &y, &width, &height, guiName)
-        IniWrite(x, inifile, guiName "-" Preset, "winx")
-        IniWrite(y, inifile, guiName "-" Preset, "winy")
-    }
-}
-GuiLoadState(guiName := "", inifile := "", Preset := 1) {
-    global
-    if (guiName = ""){
-        MsgBox "GuiLoadState: guiName is required, may be myGui.Title or myGui.name",, 0x1000
-        return
-    }
-    if (inifile = "") 
-        inifile := defaultINIfile
-    
-    oList_controls := WinGetControls(guiName)
-    
-    for n, ctrlName in oList_controls {
-        ctrl := myGui[ctrlname]
-        if !IsObject(ctrl) 
-            continue
-        if ctrl.Name = ""
-            continue
-        value := IniRead(inifile, guiName "-" Preset, ctrl.Name, "ERROR")
-        if IsNumber(value )
-            Value := value + 0
+        flag := (afterThisControl = "" ? 0 : 1)
 
-        if (value != "ERROR") {
-            ; value := RegExReplace(value, "\\|", "`n")
-            if ctrl.Type = "ComboBox" || ctrl.Type = "ListBox" 
-                ctrl.Choose(value)
-            else if ctrl.Type = "CheckBox" 
-                ControlSetChecked value, ctrl
-            else
-                ctrl.value := value
+        For Hwnd, Ctrl in MyGui {
+            if ctrl.Name = ""
+                continue
+
+            if (afterThisControl = ctrl.Name) {
+                flag := 0
+                continue
+            }
+            if (flag)
+                continue
+            if (beforeThisControl = ctrl.Name)
+                break
+
+            value := RegExReplace(ctrl.Value, "`n", "|")
+            IniWrite(value, this.iniFile, this.guiName "-" this.preset, ctrl.Name)
+        }
+        this.SavePosition()
+    }
+
+    SavePosition() {
+        winstate := WinGetMinMax(this.myGui.hwnd)
+        if (winstate != -1) {
+            x := y := width := height := ""
+            MyGui.GetPos(&x, &y, &width, &height)
+            IniWrite(x, this.iniFile, this.guiName "-" this.preset, "winX")
+            IniWrite(y, this.iniFile, this.guiName "-" this.preset, "winY")
+
+            MyGui.GetClientPos(&x, &y, &width, &height)
+            IniWrite(width, this.iniFile, this.guiName "-" this.preset, "winW")
+            IniWrite(height, this.iniFile, this.guiName "-" this.preset, "winH")
         }
     }
-    guiLoadPosition()
-}
 
-guiLoadPosition(*){
-    global
-    winx := IniRead(inifile, guiName "-" Preset, "winx", 0)
-    winy := IniRead(inifile, guiName "-" Preset, "winy", 0)
-    
-    VirtualWidth := SysGet(78)
-    VirtualHeight := SysGet(79)
-    if (winx < 0 || winx > VirtualWidth)
-        winx := 0
-    if (winy < 0 || winy > VirtualHeight)
-        winy := 0
+    LoadState() {
 
-    myGui.Show("x" winx " y" winy)
-}
+        oList_controls := WinGetControls(this.myGui.hwnd)
 
-GuiDeleteState(GuiName, IniFile := "" , Preset:=1) {
-       
-    if (inifile = "") 
-        inifile := defaultINIfile
+        For Hwnd, Ctrl in MyGui{
+            if ctrl.Name = ""
+                continue
 
-    IniDelete(inifile, GuiName "-" Preset)
-}
+            value := IniRead(this.iniFile, this.guiName "-" this.preset, ctrl.Name, "ERROR")
+            if IsNumber(value)
+                value := value + 0
 
-GuiResetState(guiName := "") {
-    if (guiName = "") {
-        MsgBox "GuiResetState: guiName is required, may be myGui.Title or myGui.name",, 0x1000
-        return
+            if (value != "ERROR") {
+                if ctrl.Type = "ComboBox" || ctrl.Type = "ListBox" 
+                    ctrl.Choose(value)
+                else if ctrl.Type = "CheckBox" 
+                    ctrl.Value := value
+                else
+                    ctrl.Value := value
+            }
+        }
+        this.LoadPosition()
     }
-    
-    oList_controls := WinGetControls(guiName)
-    
-    for n, ctrlName in oList_controls {
-        ctrl := myGui[ctrlname]
-        if !IsObject(ctrl) 
-            continue
-        if ctrl.Name = ""
-            continue
-        
-        ; Reset values based on control type
-        if ctrl.Type = "ComboBox" || ctrl.Type = "ListBox" || ctrl.Type = "DropDownList" 
-            ctrl.Choose(0) ; Select first (default) item
-        else if ctrl.Type = "CheckBox" || ctrl.Type = "Radio" 
-            ControlSetChecked(false, ctrl) ; Uncheck boxes and radio buttons
-        else 
-            ctrl.Value := "" ; Clear Edit fields and other controls
-    }
-}
 
-HasVal(haystack, needle) {
-	if !(IsObject(haystack)) || (haystack.Length() = 0)
-		return 0
-	for index, value in haystack
-		if (value = needle)
-			return index
-	return 0
+    LoadPosition() {
+        winX := IniRead(this.iniFile, this.guiName "-" this.preset, "winX", 0)
+        winY := IniRead(this.iniFile, this.guiName "-" this.preset, "winY", 0)
+        winW := IniRead(this.iniFile, this.guiName "-" this.preset, "winW", 0)
+        winH := IniRead(this.iniFile, this.guiName "-" this.preset, "winH", 0)
+
+        VirtualWidth := SysGet(78)
+        VirtualHeight := SysGet(79)
+        if (winX < 0 || winX > VirtualWidth)
+            winX := 0
+        if (winY < 0 || winY > VirtualHeight)
+            winY := 0
+
+        if (winW = "0" || winH = "0") { 
+            ; Only move the GUI without forcing size
+            this.myGui.Show("x" winX " y" winY)
+        } else { 
+            ; Apply full position and size if valid
+            this.myGui.Show("x" winX " y" winY " w" winW " h" winH)
+        }
+    }
+
+    DeleteState() {
+        IniDelete(this.iniFile, this.guiName "-" this.preset)
+    }
+
+    ResetState() {
+
+        oList_controls := WinGetControls(this.mygui.hwnd)
+
+        for n, ctrlName in oList_controls {
+            ctrl := this.myGui[ctrlName]
+            if !IsObject(ctrl) || ctrl.Name = ""
+                continue
+
+            if ctrl.Type = "ComboBox" || ctrl.Type = "ListBox" || ctrl.Type = "DropDownList" 
+                ctrl.Choose(0)
+            else if ctrl.Type = "CheckBox" || ctrl.Type = "Radio" 
+                ctrl.Value := false
+            else 
+                ctrl.Value := ""
+        }
+    }
 }

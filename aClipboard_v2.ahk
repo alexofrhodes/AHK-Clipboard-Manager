@@ -35,32 +35,7 @@ Version := "1.0.0"
     #Include lib\AnchorV2.ahk
 
     #Include lib\GuiState.ahk
-    global iniFile := "GuiState.ini"
-}
-; ====== Hotkeys ======
-{
-    #c:: {    ; Toggle GUI
-        if WinActive(myGui) {
-            myGui.Hide()
-        } else {
-            showForm()
-        }
-    }
-    $^c::       Copy()          ; Ctrl + C
-    $^x::       Cut()           ; Ctrl + X
-    $^!c::      Append()        ; Ctrl + Alt   + C 
-    $^!x::      CutAppend()     ; Ctrl + Alt   + X 
-    $^+c::      Prepend()       ; Ctrl + Shift + P 
-    $^+x::      CutPrepend()    ; Ctrl + Shift + X 
-    $!i::       Inject()        ; Alt  + I 
-    $#z::       Undo()          ; Win  + Z 
-    $#y::       Redo()          ; Win  + Y 
-    $#v::       Paste()         ; Win  + V
-    $^#V::      Format()        ; Ctrl + Win + V
-    ^s:: { 
-        if WinActive(myGui) 
-            SaveEditClipboardChanges()
-        }
+
 }
 
 ; ====== GLOBAL VARIABLES ======
@@ -96,9 +71,9 @@ Version := "1.0.0"
 ; ====== INITIALIZE ======
 {
     myGui := Gui()
-    
+
     myGui.Title := "aClipboard"
-    myGui.Opt("+AlwaysOnTop +Resize" ) ;  -LastFound )+E0x08000000") ; Prevents GUI from stealing focus
+    myGui.Opt("+AlwaysOnTop +Resize" )
 
     SB := myGui.AddStatusBar()
     UpdateStatusBar()
@@ -108,7 +83,36 @@ Version := "1.0.0"
     OnMessage(0x404, AHK_NOTIFYICON)  
 
     CreateControls()
+    global guiManager := GuiState(myGui, "GuiState.ini", 1) ; must be after the control creation
     showForm()
+}
+
+
+; ====== Hotkeys ======
+{
+    #c::        toggleGUI()     ; Win  + C
+    $^c::       Copy()          ; Ctrl + C
+    $^x::       Cut()           ; Ctrl + X
+    $^!c::      Append()        ; Ctrl + Alt   + C 
+    $^!x::      CutAppend()     ; Ctrl + Alt   + X 
+    $^+c::      Prepend()       ; Ctrl + Shift + P 
+    $^+x::      CutPrepend()    ; Ctrl + Shift + X 
+    $!i::       Inject()        ; Alt  + I 
+    $#z::       Undo()          ; Win  + Z 
+    $#y::       Redo()          ; Win  + Y 
+    $#v::       Paste()         ; Win  + V
+    $#F::       Format()        ; Win  + F
+    $^s::       SaveChanges()   ; Ctrl + S
+
+}
+
+SaveChanges(*){
+    if WinActive(myGui) {
+        SaveEditClipboardChanges()
+        ; GuiSaveState
+    }else{
+        Send("{ctrl Down}s{ctrl up}")
+    }
 }
 
 ClipChanged(DataType) {
@@ -270,11 +274,11 @@ ClipChanged(DataType) {
             </style>
             <table>
                 <tr><th>Hotkey</th><th>Action</th></tr>
-                <tr><td>#C</td><td>Toggle GUI</td></tr>
+                <tr><td>Win + C</td><td>Toggle GUI</td></tr>
                 <tr><td>Ctrl + C</td><td>Copy</td></tr>
                 <tr><td>Ctrl + X</td><td>Cut</td></tr>
-                <tr><td>#V</td><td>Paste by chosen PasteMethod</td></tr>
-                <tr><td>^#V</td><td>Format Selected Text</td></tr>
+                <tr><td>Win + V</td><td>Paste by chosen PasteMethod</td></tr>
+                <tr><td>Win + F</td><td>Format Selected Text</td></tr>
                 <tr><td>Ctrl + Alt + C</td><td>Append</td></tr>
                 <tr><td>Ctrl + Alt + X</td><td>Cut Append</td></tr>
                 <tr><td>Ctrl + Shift + P</td><td>Prepend</td></tr>
@@ -284,6 +288,7 @@ ClipChanged(DataType) {
                 <tr><td>Win + Y</td><td>Redo</td></tr>
                 <tr><td>Ctrl + S</td><td>If gui active, Save Edit Changes</td></tr>
             </table>
+            </br></br><p>For advanced clipboard management, consider using <a href='https://hluk.github.io/CopyQ/' target='_blank'>CopyQ</a>.</p>
         </body>
         </html>
         )"
@@ -309,13 +314,13 @@ ClipChanged(DataType) {
     
     showForm(*) {
         myGui.Show("NoActivate x5000 y5000") ;show offscreen to avoid fliccker from guiLoadState
-        GuiLoadState(myGui.Title, iniFile)
+        guiManager.LoadState()
     }
 
     toggleGUI(*){
         if IsSet(myGui) && myGui {
             if WinActive(myGui.Hwnd) {
-                GuiSavePosition()
+                guiManager.SavePosition()
                 myGui.Hide()
             } else {
                 showForm()
@@ -511,8 +516,9 @@ ClipChanged(DataType) {
     }
 
     SaveState(*){
-        GuiSaveState(myGui.Title, iniFile)
+        guiManager.SaveState()
     }
+    
     SaveEditClipboardChanges(*){
         if lbLogfiles.value =0
             return

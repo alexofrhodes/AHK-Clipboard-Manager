@@ -1,3 +1,0 @@
-
-        ; Ask user if they want to delete manually named files (Yes/No/Cancel)
-        if manualFilesExist {

@@ -1,1 +1,0 @@
-TrayIcon := StrReplace(A_ScriptDir "\" A_ScriptName (A_IsCompiled ? ".exe" : ".ahk"), ".ahk", ".ico")
