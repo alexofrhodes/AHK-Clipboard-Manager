@@ -318,9 +318,9 @@ ClipChanged(DataType) {
     }
 
     toggleGUI(*){
+        guiManager.SaveState()
         if IsSet(myGui) && myGui {
             if WinActive(myGui.Hwnd) {
-                guiManager.SavePosition()
                 myGui.Hide()
             } else {
                 showForm()
