@@ -52,7 +52,8 @@ Version := "1.0.0"
     Loop Files, historyDir . "\*.*" 
         LogFiles.InsertAt(1, StrReplace(A_LoopFileName, ".txt", "")) 
 
-    global currentIndex := 1    ; used for lbLogfiles
+    global currentIndex := 1        ; used for lbLogfiles
+    global activeControlIndex := 1  ; used for cycling focus
 
     global Datatype_Empty      := 0
     global Datatype_Text       := 1
@@ -105,6 +106,33 @@ Version := "1.0.0"
     $^s::       SaveChanges()   ; Ctrl + S
 
 }
+
+$Tab::
+$+Tab::
+{
+    global
+    if !WinActive(mygui.hwnd){
+        Send "{Tab}"
+        return
+    }
+
+    zControls := [editFilter, lbLogFiles, editClipboard]
+    ; Check if Shift is held
+    if GetKeyState('Shift') {
+        ; Cycle backwards if Shift is held
+        activeControlIndex -= 1
+        if activeControlIndex < 1
+            activeControlIndex := zControls.length
+    } else {
+        ; Cycle forwards if Shift is not held
+        activeControlIndex += 1
+        if activeControlIndex > zControls.length
+            activeControlIndex := 1
+    }
+    
+    zControls[activeControlIndex].Focus()
+}
+
 
 SaveChanges(*){
     if WinActive(myGui) {
@@ -255,7 +283,7 @@ ClipChanged(DataType) {
         btnRename.OnEvent("Click", RenameLogFile)
 
         myGui.Add("Text", "xs w120", "Filter")
-        editFilter := myGui.Add("Edit", "xs w120", "")
+        editFilter := myGui.Add("Edit", "xs w150", "")
         editFilter.OnEvent("Change", FilterLogFiles)
 
         lbLogFiles := myGui.Add("ListBox", "xs h400 w150 HScroll", LogFiles) 
@@ -330,8 +358,10 @@ ClipChanged(DataType) {
     }
     
     showForm(*) {
-        myGui.Show("NoActivate x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
+        
+        myGui.Show("x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
         guiManager.LoadState()
+        editFilter.Focus() 
     }
 
     toggleGUI(*){
@@ -1029,6 +1059,41 @@ ClipChanged(DataType) {
         words := StrSplit(A_Clipboard, " ")
         A_Clipboard := ArrayToString(words, " ", true) ; Reverse order
     }
+
+
+
+
+
+
+
+
+
+    ; ----Encapsulation ----
+
+    $(:: Encapsulate()
+    $[:: Encapsulate()
+    ${:: Encapsulate()
+    $":: Encapsulate()
+    $<:: Encapsulate()
+    ; $':: Encapsulate 
+    
+    Encapsulate(*) {
+        if winactive(mygui.hwnd){
+            send substr(A_ThisHotkey,2)
+            return
+        }
+        Copy()
+        switch substr(A_ThisHotkey,2) {
+        case "[": A_Clipboard := "[" A_Clipboard "]"
+        case "(": A_Clipboard := "(" A_Clipboard ")"  
+        case "{": A_Clipboard := "{" A_Clipboard "}"
+        case '"': A_Clipboard := '"' A_Clipboard '"'
+        case "<": A_Clipboard := "<" A_Clipboard ">"
+        ; case "'": A_Clipboard := "'" A_Clipboard "'"
+        }
+        paste()
+    }
+    
 }
     ; ====== HELPER FUNCTIONS ======
 {
