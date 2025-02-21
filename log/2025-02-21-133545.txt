@@ -1,0 +1,29 @@
+ToggleActions(*) {
+            global 
+        
+            ; Get the active tab index
+            activeTab := tabControl.Value  
+        
+            checkState := 0  ; Assume all in the current tab are checked
+        
+            ; Check if any checkbox in the current tab is unchecked
+            for ctrl in actionCheckboxes {
+                if (ctrl.Visible && ctrl.Value = 0) {  
+                    checkState := 1  ; If any is unchecked, we set checkState to check all
+                    break
+                }
+            }
+        
+            ; Apply checkState only to checkboxes in the current tab
+            for ctrl in actionCheckboxes {
+                if (ctrl.Visible)  ; Only toggle those in the active tab
+                    ctrl.Value := checkState
+            }
+        
+            ; Ask if the user wants to apply to all tabs
+            if (MsgBox("Apply this change to all tabs?", "Confirmation", "Y/N") = "Yes") {
+                for ctrl in actionCheckboxes {
+                    ctrl.Value := checkState  ; Apply to all
+                }
+            }
+        }

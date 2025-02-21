@@ -55,6 +55,7 @@ Anchor(i, a := "", r := false)
 		if NumGet(c, cb := cs * (A_Index - 1), "UInt") == i
 		{
 			if (a = "")
+				if (a = "")
 			{
 				cf := 1
 				break

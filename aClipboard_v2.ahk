@@ -7,26 +7,12 @@
     ; ===================================================================
     ; Script Name:     [aClipboard]
     ; Author:          [https://github.com/alexofrhodes]
-    ;
-    ; Usage:
-    ;   -   See the HOTKEYS section bellow
-    ;
-    ; Requirements
-    ;   -   AnchorV2.ahk
-    ;   -   GuiState.ahk
-    ;
-    ; Alternatives:
-    ;     - [https://github.com/hluk/CopyQ]
-    ;     - [Alternative 2]
-    ;
-    ; Changelog:
-    ;   - [2025-02-17] - [Version 1.0.0]: [Initial Release]
     ; ===================================================================
 }
 
 Version := "1.0.0"
 
-; ====== INCLUDE ======
+; ====== Includes ======
 {
     #Requires AutoHotkey v2.0
     #SingleInstance Force
@@ -35,11 +21,11 @@ Version := "1.0.0"
     #Include lib\AnchorV2.ahk
 
     #Include lib\GuiState.ahk
-
+    #Include lib\Translator.ahk
 }
-
-; ====== GLOBAL VARIABLES ======
+; ====== Global Variables ======
 {
+    global showOnStart := 1
     global previousClipboard := ""
     global actionCheckboxes := [] ; Array to store transformation checkboxes
 
@@ -59,973 +45,1217 @@ Version := "1.0.0"
     global Datatype_Text       := 1
     global Datatype_NonText    := 2
     global ClipboardDatatype   := Datatype_Empty
-    OnClipboardChange ClipChanged, -1   
-
+    OnClipboardChange(ClipChanged, -1)   
+    A_Clipboard := A_Clipboard
     ; OnClipboardChange Callback , [AddRemove]
     ;If omitted, it defaults to 1. Otherwise, specify one of the following numbers:
     ;  1 = Call the callback after any previously registered callbacks.
     ; -1 = Call the callback before any previously registered callbacks.    <==
     ;  0 = Do not call the callback.
 
-    A_Clipboard := A_Clipboard
-}
-; ====== INITIALIZE ======
-{
-    myGui := Gui()
-
-    myGui.Title := "aClipboard"
-    myGui.Opt("+AlwaysOnTop +Resize" )
-
-    SB := myGui.AddStatusBar()
-    UpdateStatusBar()
-
-    myGui.OnEvent("Close", Gui_Close)
-    myGui.OnEvent("Size", OnSize)
-    OnMessage(0x404, AHK_NOTIFYICON)  
-
-    CreateControls()
-    global guiManager := GuiState(myGui, "GuiState.ini", 1) ; must be after the control creation
-    showForm()
-}
-
-
-; ====== Hotkeys ======
-{
-    #c::        toggleGUI()     ; Win  + C
-    $^c::       Copy()          ; Ctrl + C
-    $^x::       Cut()           ; Ctrl + X
-    $^!c::      Append()        ; Ctrl + Alt   + C 
-    $^!x::      CutAppend()     ; Ctrl + Alt   + X 
-    $^+c::      Prepend()       ; Ctrl + Shift + P 
-    $^+x::      CutPrepend()    ; Ctrl + Shift + X 
-    $!i::       Inject()        ; Alt  + I 
-    $#z::       Undo()          ; Win  + Z 
-    $#y::       Redo()          ; Win  + Y 
-    $#v::       Paste()         ; Win  + V
-    $#F::       Format()        ; Win  + F
-    $^s::       SaveChanges()   ; Ctrl + S
-
-}
-
-$Tab::
-$+Tab::
-{
-    global
-    if !WinActive(mygui.hwnd){
-        Send "{Tab}"
-        return
-    }
-
-    zControls := [editFilter, lbLogFiles, editClipboard]
-    ; Check if Shift is held
-    if GetKeyState('Shift') {
-        ; Cycle backwards if Shift is held
-        activeControlIndex -= 1
-        if activeControlIndex < 1
-            activeControlIndex := zControls.length
-    } else {
-        ; Cycle forwards if Shift is not held
-        activeControlIndex += 1
-        if activeControlIndex > zControls.length
-            activeControlIndex := 1
-    }
+    ; languages := Map()
+    ; languages.CaseSense := true
+    languages := Map(
+        "--Auto-Detect--", "auto",
+        "Afrikaans", "af",
+        "Albanian", "sq",
+        "Amharic", "am",
+        "Arabic", "ar",
+        "Armenian", "hy",
+        "Assamese", "as",
+        "Aymara", "ay",
+        "Azerbaijani", "az",
+        "Bambara", "bm",
+        "Basque", "eu",
+        "Belarusian", "be",
+        "Bengali", "bn",
+        "Bhojpuri", "bho",
+        "Bosnian", "bs",
+        "Bulgarian", "bg",
+        "Catalan", "ca",
+        "Cebuano", "ceb",
+        "Chinese (Simplified)", "zh-CN",
+        "Chinese (Traditional)", "zh-TW",
+        "Corsican", "co",
+        "Croatian", "hr",
+        "Czech", "cs",
+        "Danish", "da",
+        "Dhivehi", "dv",
+        "Dogri", "doi",
+        "Dutch", "nl",
+        "English", "en",
+        "Esperanto", "eo",
+        "Estonian", "et",
+        "Ewe", "ee",
+        "Filipino (Tagalog)", "fil",
+        "Finnish", "fi",
+        "French", "fr",
+        "Frisian", "fy",
+        "Galician", "gl",
+        "Georgian", "ka",
+        "German", "de",
+        "Greek", "el",
+        "Guarani", "gn",
+        "Gujarati", "gu",
+        "Haitian Creole", "ht",
+        "Hausa", "ha",
+        "Hawaiian", "haw",
+        "Hebrew", "he",
+        "Hindi", "hi",
+        "Hmong", "hmn",
+        "Hungarian", "hu",
+        "Icelandic", "is",
+        "Igbo", "ig",
+        "Ilocano", "ilo",
+        "Indonesian", "id",
+        "Irish", "ga",
+        "Italian", "it",
+        "Japanese", "ja",
+        "Javanese", "jv",
+        "Kannada", "kn",
+        "Kazakh", "kk",
+        "Khmer", "km",
+        "Kinyarwanda", "rw",
+        "Konkani", "gom",
+        "Korean", "ko",
+        "Krio", "kri",
+        "Kurdish", "ku",
+        "Kurdish (Sorani)", "ckb",
+        "Kyrgyz", "ky",
+        "Lao", "lo",
+        "Latin", "la",
+        "Latvian", "lv",
+        "Lingala", "ln",
+        "Lithuanian", "lt",
+        "Luganda", "lg",
+        "Luxembourgish", "lb",
+        "Macedonian", "mk",
+        "Maithili", "mai",
+        "Malagasy", "mg",
+        "Malay", "ms",
+        "Malayalam", "ml",
+        "Maltese", "mt",
+        "Maori", "mi",
+        "Marathi", "mr",
+        "Meiteilon (Manipuri)", "mni-Mtei",
+        "Mizo", "lus",
+        "Mongolian", "mn",
+        "Myanmar (Burmese)", "my",
+        "Nepali", "ne",
+        "Norwegian", "no",
+        "Nyanja (Chichewa)", "ny",
+        "Odia (Oriya)", "or",
+        "Oromo", "om",
+        "Pashto", "ps",
+        "Persian", "fa",
+        "Polish", "pl",
+        "Portuguese", "pt",
+        "Punjabi", "pa",
+        "Quechua", "qu",
+        "Romanian", "ro",
+        "Samoan", "sm",
+        "Sanskrit", "sa",
+        "Scots Gaelic", "gd",
+        "Sepedi", "nso",
+        "Serbian", "sr",
+        "Sesotho", "st",
+        "Shona", "sn",
+        "Sindhi", "sd",
+        "Sinhala (Sinhalese)", "si",
+        "Slovak", "sk",
+        "Slovenian", "sl",
+        "Somali", "so",
+        "Spanish", "es",
+        "Sundanese", "su",
+        "Swahili", "sw",
+        "Swedish", "sv",
+        "Tagalog (Filipino)", "tl",
+        "Tajik", "tg",
+        "Tamil", "ta",
+        "Tatar", "tt",
+        "Telugu", "te",
+        "Thai", "th",
+        "Tigrinya", "ti",
+        "Tsonga", "ts",
+        "Turkish", "tr",
+        "Turkmen", "tk",
+        "Twi (Akan)", "ak",
+        "Ukrainian", "uk",
+        "Urdu", "ur",
+        "Uyghur", "ug",
+        "Uzbek", "uz",
+        "Vietnamese", "vi",
+        "Welsh", "cy",
+        "Xhosa", "xh",
+        "Yiddish", "yi",
+        "Yoruba", "yo",
+        "Zulu", "zu"
+    )
     
-    zControls[activeControlIndex].Focus()
+    languageList := []
+    for lang in languages
+        languageList.Push(lang)
 }
-
-
-SaveChanges(*){
-    if WinActive(myGui) {
-        SaveEditClipboardChanges()
-        ; GuiSaveState
-    }else{
-        Send("{ctrl Down}s{ctrl up}")
-    }
-}
-
-ClipChanged(DataType) {
-    global
-    ClipboardDatatype := DataType
-}
-
-; ====== GUI FUNCTIONS ======
+; ====== Create GUI ======
 {
+    ; ---- Main ----
+    {
+        myGui := Gui()
+
+        myGui.Title := "aClipboard"
+        myGui.Opt("+AlwaysOnTop +Resize" )
+
+        SB := myGui.AddStatusBar()
+        UpdateStatusBar()
+
+        myGui.OnEvent("Close", Gui_Close)
+        myGui.OnEvent("Size", OnSize)
+        OnMessage(0x404, AHK_NOTIFYICON)  
+
+        CreateControls()
+        global guiManager := GuiState(myGui, "GuiState.ini", 1) ; must be after the control creation
+        if showOnStart{
+            showForm()
+            editFilter.focus()
+        }
+    }
     CreateControls(*){
-
         global
-
-        ; ====== FIND/REPLACE SECTION ======
-        btnFind := myGui.Add("Button", "w150", "Find")
-        btnFind.Enabled := false
-
-        editFind := myGui.Add("Edit", "w350 x+m veditFind", "") 
-
-        btnSave := myGui.Add("Button", "ys ", "Save")
-        btnSave.OnEvent("Click", SaveRegexValues)
-
-        btnReplace := myGui.Add("Button", "xm w150", "Replace")
-        btnReplace.OnEvent("Click", (*)=> ExecuteFunction(Replace))
-
-        editReplace := myGui.Add("Edit", "x+m section w350 veditReplace") 
-
-        btnLoad := myGui.Add("Button", "ys", "Load")
-        btnLoad.OnEvent("Click", LoadRegexValues)
-
-        chRegex := myGui.Add("Checkbox", "xs vchRegex", "Regex")
-
-        chCaseSensitive := myGui.Add("Checkbox", "x+m vchCaseSensitive" , "CaseSensitive")
-
-        lblLimit := myGui.Add("Text", "x+m section", "Limit")
-        editLimit := myGui.Add("Edit", "x+m w20 ys-1 h16 veditLimit", "")
-
-        lblStartingPos := myGui.Add("Text", "ys", "Start")
-        editStartingPos := myGui.Add("Edit", "x+m ys-1 w20 h16 veditStartingPos", "")
-
-        Separator1 := myGui.Add("Text", "xm h1 w550 0x10") ; Separator
-
-        ; ====== MENU BAR ======
-        MyArray := [  "Copy"
-                    , "Cut"
-                    , "Paste"
-                    , "Format"
-                    , "Append"    
-                    , "Prepend"
-                    , "CutAppend"   
-                    , "CutPrepend"     
-                    , "Input"
-                    , "Inject"
-                    , "Undo" 
-                    , "Redo"
-                    , "Help"
-                    ]
-
-        MyMenuBar := MenuBar()
-        For value in MyArray{
-            MyMenuBar.Add(value, %value%)   
-            targetFile := A_ScriptDir . "\icons\" . value . ".ico"
-            if (FileExist(targetFile))
-                MyMenuBar.SetIcon(value, targetFile) ; , IconNumber, IconWidth)
-       }
-
-        myGui.MenuBar := MyMenuBar
-
-        addAuthorMenubar(myGui)
-
-        ; ====== Append Options ======
-
-        myGui.Add("Text", "xm section w40", "Sep:")
-        MyArray := [  "Linebreak"
-                    , "Space"
-                    , "Tab"
-                    ]
-        
-        AppendBy := myGui.Add("DropDownList","x+m w80 vAppendBy", MyArray)                
-
-        MyGui.Add("Text", "xs w45", "Paste:")
-        pasteMethods := ["Ctrl+V", "SendText", "SendInput"]
-        ddlPasteMethod := MyGui.Add("DropDownList", "x+m w75 vddlPasteMethod", pasteMethods)
-        ddlPasteMethod.Choose(1)                ; Default to Ctrl+V
-        
-        MyGui.Add("Text", "xs w45", "Cycle:")
-        ddlAfterPasteAction := myGui.Add("DropDownList", "x+m w75 vddlAfterPasteAction", ["None", "Previous", "Next"])
-        ddlAfterPasteAction.choose(1)
-        
-        ; ====== ACTION CHECKBOXES ====== 
-
-        ; Button to execute checked functions
-        btnGetChecked := myGui.Add("Button", "xs w150", "Apply Selected")
-        btnGetChecked.OnEvent("Click", applyActionCheckboxes)
-
-        AutoApply := myGui.Add("Checkbox", "xs vchAutoApply", "Auto Apply")
-        btnToggle := myGui.AddButton("w150 ", "Toggle Actions")
-        btnToggle.OnEvent("Click", ToggleActions)
-        
-        ;===============================================================================
-        ; @MODIFY (1) - Add the names of your clipboard modifying functions to this array. See @MODIFY(2)
-        ;===============================================================================
-
-        MyArray := [
-                      "Replace"
-                    , "Transclude"
-                    , "BreakLinesToSpaces"
-                    , "ToUpperCase"
-                    , "ToLowerCase"
-                    , "ReverseWords" 
-                    ]
-        
-        ; MyArray := []
-        ; Loop 50  ; Creates 50 test items
-        ;     MyArray.Push("test" A_Index)
-        
-        ItemsPerTab := 20
-        TotalTabs := Ceil(MyArray.Length / ItemsPerTab)
-        
-        tabNames := []
-        Loop TotalTabs
-            tabNames.Push("Tab " A_Index)     
-
-        ;https://www.autohotkey.com/docs/v2/misc/Styles.htm#Tab
-        tabControl := myGui.Add("Tab3", "vTabControl xs w150 0x80 0x100 R" ItemsPerTab , tabNames)
-        actionCheckboxes := []
-        
-        For index, value in MyArray {
-            tabIndex := Ceil(index / ItemsPerTab)
-            tabControl.UseTab(tabIndex)  ; Switch to the corresponding tab     
-            ; vCh + Value is used to assign a name, to use with the GuiState functions
-            actionCheckboxes.Push(myGui.Add("Checkbox", " vch" value, value))
-        }
-        tabControl.UseTab()
-
-        myGui.Add("Button", "ys section w70", "Del Sel").OnEvent("Click", DeleteSelectedLogFile)
-        myGui.Add("Button", "x+m w70", "Del All").OnEvent("Click", DeleteAllLogFiles)
-
-        btnRename := myGui.Add("Button", "xs w150", "Rename")
-        btnRename.OnEvent("Click", RenameLogFile)
-
-        myGui.Add("Text", "xs w120", "Filter")
-        editFilter := myGui.Add("Edit", "xs w150", "")
-        editFilter.OnEvent("Change", FilterLogFiles)
-
-        lbLogFiles := myGui.Add("ListBox", "xs h400 w150 HScroll", LogFiles) 
-        lbLogFiles.OnEvent("Change", LoadSelectedLogFile)
-        
-        myGui.Add("Text", "ys section", "Clipboard Content")
-        btnSaveEditClipboard := myGui.Add("Button", "ys w120", "Save Changes")
-        btnSaveEditClipboard.OnEvent("Click", SaveEditClipboardChanges)        
-        editClipboard := myGui.Add("Edit", "xs w240 h470 +HScroll -wrap") ;no vName, no need to save in the ini file
-
-        if logfiles.Length > 0{
-            lbLogFiles.Choose(1)  
-            LoadSelectedLogFile()
-        }
-        if (A_Clipboard != editClipboard.Text)
-            SaveClipboardToLogFile()
-    }
-    
-    ; test1(*){
-    ;     MsgBox("test1")
-    ; }
-    
-    Help(*) {
-        HelpHTML := "
-        (
-        <html>
-        <body>
-            <style>
-                body { font-family: Arial, sans-serif; }
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid black; padding: 5px; text-align: left; }
-                th { background-color: #f2f2f2; }
-            </style>
-            <table>
-                <tr><th>Hotkey</th><th>Action</th></tr>
-                <tr><td>Win + C</td><td>Toggle GUI</td></tr>
-                <tr><td>Ctrl + C</td><td>Copy</td></tr>
-                <tr><td>Ctrl + X</td><td>Cut</td></tr>
-                <tr><td>Win + V</td><td>Paste by chosen PasteMethod</td></tr>
-                <tr><td>Win + F</td><td>Format Selected Text</td></tr>
-                <tr><td>Ctrl + Alt + C</td><td>Append</td></tr>
-                <tr><td>Ctrl + Alt + X</td><td>Cut Append</td></tr>
-                <tr><td>Ctrl + Shift + P</td><td>Prepend</td></tr>
-                <tr><td>Ctrl + Shift + X</td><td>Cut Prepend</td></tr>
-                <tr><td>Alt + I</td><td>Inject</td></tr>
-                <tr><td>Win + Z</td><td>Undo</td></tr>
-                <tr><td>Win + Y</td><td>Redo</td></tr>
-                <tr><td>Ctrl + S</td><td>If gui active, Save Edit Changes</td></tr>
-            </table>
-            </br></br><p>For advanced clipboard management, consider using <a href='https://hluk.github.io/CopyQ/' target='_blank'>CopyQ</a>.</p>
-        </body>
-        </html>
-        )"
-    
-        ; Create GUI
-        helpGui := Gui(, "Hotkey Guide")
-        browser := helpGui.AddActiveX("x10 y10 w500 h500", "Shell.Explorer")
-    
-        ; Wait until the ActiveX control is fully ready
-        ComObject := browser.Value
-        if (ComObject) {
-            ComObject.Navigate("about:blank")  ; Navigate to an empty page first
-            Loop {
-                Sleep 50  ; Wait until the page is ready
-            } Until !ComObject.Busy && ComObject.ReadyState = 4
-    
-            ComObject.document.write(HelpHTML)  ; Inject the HTML content
-            ComObject.document.close()
-        }
-        helpGui.Opt("+AlwaysOnTop")
-        helpGui.Show("AutoSize ")
-    }
-    
-    showForm(*) {
-        
-        myGui.Show("x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
-        guiManager.LoadState()
-        editFilter.Focus() 
-    }
-
-    toggleGUI(*){
-        guiManager.SaveState()
-        if IsSet(myGui) && myGui {
-            if WinActive(myGui.Hwnd) {
-                myGui.Hide()
-            } else {
-                showForm()
-            }
-        } else {
-            
-        }
-    }
-
-    RenameLogFile(*) {
-        global 
-    
-        if (currentIndex = 0) {
-            MsgBox "Please select a file to rename."
-            return
-        }
-    
-        oldFileName := logFiles[currentIndex]
-        oldFilePath := historyDir "\" oldFileName ".txt"
-    
-        ; Extract timestamp part (assuming it's always at the start)
-        RegExMatch(oldFileName, "^\d{4}-\d{2}-\d{2}-\d{6}", &match)
-        timestamp := match[0]
-    
-        if (!timestamp) {
-            MsgBox "Invalid file format. Cannot rename."
-            return
-        }
-    
-        ; Ask for a new name
-        myGui.Opt("-AlwaysOnTop")
-        IB := InputBox("Enter a new name for the log file:", "Rename Log File")
-        myGui.Opt("+AlwaysOnTop")
-        newName := IB.Value
-        if (IB.Result = "Cancel" || newName = "")
-            return
-        
-        ; Remove old custom name if one exists
-        newFileName := timestamp " " newName
-        newFilePath := historyDir "\" newFileName ".txt"
-    
-        ; Ensure the new name does not exist
-        while FileExist(newFilePath) {
-            myGui.Opt("-AlwaysOnTop")
-            IB := InputBox(newfilename " already exists.`nEnter a new name for the log file:","Rename Log File")
-            myGui.Opt("+AlwaysOnTop")
-            newName := IB.Value                
-            if (IB.Result := "Cancel" || newName = "")
-                return
-            newFileName := timestamp " " newName
-            newFilePath := historyDir "\" newFileName ".txt"
-        } 
-        FileMove(oldFilePath, newFilePath)
-        logFiles[currentIndex] := newFileName
-        lbLogFiles.Delete
-        lbLogFiles.add(logFiles)
-        lbLogFiles.choose(currentIndex)
-    }
-    
-    FilterLogFiles(*) {
-        global
-        currentIndex := 0
-        lbLogFiles.choose(0)
-        searchTerm := editFilter.Text
-
-        LogFiles := []
-        Loop Files, historyDir . "\*.*"  
+        ; Part 1
         {
-            item := StrReplace(A_LoopFileName, ".txt", "")
-            if searchTerm = ""
-                LogFiles.InsertAt(1, item)
-            else if (InStr(A_LoopFileName, searchTerm))  
-                LogFiles.InsertAt(1, item)
-        }
-        lbLogFiles.delete
-        if LogFiles.length > 0 {
-            lbLogFiles.Add(LogFiles)
-        }
-        if LogFiles.length > 0{
-            lbLogFiles.choose(1)
-            LoadSelectedLogFile()
-        }
-    }
+            ; ---- MenuBar ----
+            {
+                MyArray := [  "Copy"
+                            , "Cut"
+                            , "Paste"
+                            , "myFormat"
+                            , "Append"    
+                            , "Prepend"
+                            , "CutAppend"   
+                            , "CutPrepend"     
+                            , "Input"
+                            , "Inject"
+                            , "Undo" 
+                            , "Redo"
+                            , "Help"
+                            ]
+        
+                MyMenuBar := MenuBar()
+                For value in MyArray{
+                    MyMenuBar.Add(value, %value%)   
+                    targetFile := A_ScriptDir . "\icons\" . value . ".ico"
+                    if (FileExist(targetFile))
+                        MyMenuBar.SetIcon(value, targetFile) ; , IconNumber, IconWidth)
+                }
+                myGui.MenuBar := MyMenuBar
+                addAuthorMenubar(myGui)
+            }
+            ; ---- Find/Replace ----
+            {
+                btnFind := myGui.Add("Button", "w150", "Find")
+                btnFind.Enabled := false
+        
+                editFind := myGui.Add("Edit", "w350 x+m veditFind", "") 
+        
+                btnSave := myGui.Add("Button", "ys ", "Save")
+                btnSave.OnEvent("Click", SaveRegexValues)
+        
+                btnReplace := myGui.Add("Button", "xm w150", "Replace")
+                btnReplace.OnEvent("Click", (*)=> ExecuteFunction("Replace"))
+        
+                editReplace := myGui.Add("Edit", "x+m section w350 veditReplace") 
+        
+                btnLoad := myGui.Add("Button", "ys", "Load")
+                btnLoad.OnEvent("Click", LoadRegexValues)
+        
+                chRegex := myGui.Add("Checkbox", "xs vchRegex", "Regex")
+        
+                chCaseSensitive := myGui.Add("Checkbox", "x+m vchCaseSensitive" , "CaseSensitive")
+        
+                lblLimit := myGui.Add("Text", "x+m section", "Limit")
+                editLimit := myGui.Add("Edit", "x+m w20 ys-1 h16 veditLimit", "")
+        
+                lblStartingPos := myGui.Add("Text", "ys", "Start")
+                editStartingPos := myGui.Add("Edit", "x+m ys-1 w20 h16 veditStartingPos", "")
+        
+                Separator1 := myGui.Add("Text", "xm h1 w570 0x10") ; Separator
+            }
 
-    LoadSelectedLogFile(*) {
-        global 
-        currentIndex := lbLogFiles.Value
-        selectedFile := lbLogFiles.Text . ".txt"
-        if (currentIndex != 0) {
-            filePath := historyDir "\" selectedFile
-            editClipboard.Value := FileRead(filePath)
-            A_Clipboard := editClipboard.Value
-        }
-    }
-  
-    DeleteSelectedLogFile(*) {
-        global
-        if (lbLogFiles.Value > 0) {
-            if (LogFiles.length = 1) {
-                DeleteAllLogFiles()
-                return
+            ; ---- Append/Prepend Options ----
+            {
+                myGui.Add("Text", "xm section w60", "Separator:")
+                MyArray := [  "Linebreak"
+                            , "Space"
+                            , "Tab"
+                            ]
+                
+                ddlSeparator := myGui.Add("DropDownList","x+m w80 vddlSeparator", MyArray)                
+            
+            }
+            ; ---- Paste Options ----
+            {
+                MyGui.Add("Text", "xs w70", "Paste Method:")
+                pasteMethods := ["Ctrl+V", "SendText", "SendInput"]
+                ddlPasteMethod := MyGui.Add("DropDownList", "x+m w70 vddlPasteMethod", pasteMethods)
+                ddlPasteMethod.Choose(1)                ; Default to Ctrl+V
+                
+                MyGui.Add("Text", "xs w65", "After Paste:")
+                ddlAfterPasteAction := myGui.Add("DropDownList", "x+m w75 vddlAfterPasteAction", ["None", "Previous", "Next"])
+                ddlAfterPasteAction.choose(1)
+
+                myGui.Add("Text", "xm h1 w150 0x10") ; Separator
+            }  
+            ; ---- Translation ----
+            {
+                myGui.Add("Text", "xm w40", "Source")
+                ddlSourceLanguage := myGui.Add("DropDownList", "x+m w100 vSourceLang Choose1 vddlSourceLanguage", languageList)
+                myGui.Add("Text", "xm w40", "Target")
+                ddlTargetLanguage := myGui.Add("DropDownList", "x+m w100 vTargetLang Choose2 vddlTargetLanguage", languageList)
+                myGui.Add("Button", "xm w70", "Swap").OnEvent("Click", SwapLanguages)
+                myGui.Add("Button","x+m w70", "Translate").OnEvent("Click", (*)=> ExecuteFunction("Translate"))
+                myGui.Add("Text", "xm h1 w150 0x10") ; Separator
             }
     
-            selectedFile := lbLogFiles.text . ".txt"
-            filePath := historyDir "\" selectedFile
+        }
+        ; Part 2 - @MODIFY (1) - !!! ADD THE NAMES OF YOUR CLIPBOARD MODIFYING FUNCTIONS TO THIS ARRAY !!! . See @MODIFY(2)
+        {
+            ; ---- Actions ---- 
+            { 
+
+            btnGetChecked := myGui.Add("Button", "xm w150", "Apply")
+            btnGetChecked.OnEvent("Click", applyActionCheckboxes)
+            chAutoApply := myGui.Add("Checkbox", "xm vchAutoApply", "Auto")
+            chCurrentTabOnly := myGui.Add("Checkbox", "x+m vchCurrentTabOnly", "Only Current Tab")
             
-            ; Check if the file has a manual name
-            if RegExMatch(selectedFile, "^\d{4}-\d{2}-\d{2}-\d{6} (.+)") {
-                userChoice := MsgBox("This file has a manual name. Do you still want to delete it?",, 3)  ; Yes/No/Cancel
-                if (userChoice = "No" || userChoice = "Cancel") {
-                    return  ; Do nothing if No or Cancel is chosen
+            btnToggle := myGui.AddButton("xs w150 ", "Toggle")
+            btnToggle.OnEvent("Click", ToggleActions)
+            }   
+            
+            ; Predefined tabs with specific checkboxes stored in a map
+            ; predefinedTabs := Map(tabname1, arrayoffunctionnames, tabname2, arrayoffunctionnames)
+            predefinedTabs := Map(
+                "1. Main", ["Replace", "Transclude", "Translate"],
+                "2. Common", ["ToUpperCase", "ToLowerCase", "ReverseWords", "TrimSpaces", "RemoveDigits"],
+            )
+    
+            ; Remaining checkboxes (to be distributed into dynamic tabs)
+            ; remainingCheckboxes := [] ; array of function names
+            remainingCheckboxes := [
+                "FormatJSON", "ToMarkdown", "ToCSV", "UpperFirstLetter", "LowerFirstLetter",
+                "InvertCase", "RandomizeText", "StripSpecialChars", "FindAndReplace",
+                "FormatDate", "NormalizeFilePath", "RemoveWhitespace", "CountWords",
+                "ReverseLines", "SortLines", "CapitalizeSentences"
+            ]
+    
+            ItemsPerTab := 15  ; Max number of checkboxes per tab
+    
+            ; Create an array for tab names
+            tabNames := []
+            For Key , Value in predefinedTabs
+                tabNames.Push(Key)
+    
+            ; Calculate extra tabs needed for remaining checkboxes
+            extraItems := remainingCheckboxes.Length
+            extraTabs := Ceil(extraItems / ItemsPerTab)
+            Index := tabNames.Length
+            ; Generate additional tab names
+            Loop extraTabs
+                tabNames.Push("Tab" A_Index + Index)  ; Naming dynamic tabs (Tab4, Tab5, etc.)
+    
+            ; Create the Tab control
+            tabControl := myGui.Add("Tab3", "vTabControl xs w155 0x80 0x100 R" ItemsPerTab, tabNames)
+    
+            ; Store checkbox objects for later use
+            actionCheckboxes := []
+    
+            ; Add checkboxes to predefined tabs
+            For tabName in predefinedTabs {
+                tabControl.UseTab(tabName)  ; Switch to predefined tab
+                For checkboxLabel in predefinedTabs[tabName] {
+                    actionCheckboxes.Push(myGui.AddCheckbox("vch" checkboxLabel, checkboxLabel)) 
                 }
             }
     
-            if FileExist(filePath) {
-                FileDelete(filePath)
-                LogFiles.RemoveAt(lbLogFiles.Value)
-                lbLogFiles.Delete(lbLogFiles.Value)
+            ; Assign remaining checkboxes to dynamic tabs
+            tabIndex := predefinedTabs.Count + 1  ; Start from the first dynamic tab
+            itemCount := 0
     
-                if (LogFiles.length > 0) {
-                    currentIndex := Min(currentIndex, LogFiles.length)  ; Ensure valid index
-                    lbLogFiles.Choose(currentIndex)
+            For checkboxLabel in remainingCheckboxes {
+                if (itemCount = 0)  ; Move to the next tab when a new tab starts
+                    tabControl.UseTab(tabIndex++)
+    
+                actionCheckboxes.Push(myGui.AddCheckbox("vch" checkboxLabel, checkboxLabel)) 
+                
+                itemCount++
+                if (itemCount >= ItemsPerTab)  ; Reset item count for new tab
+                    itemCount := 0
+            }
+    
+            tabControl.UseTab()  ; Reset tab selection
+    
+        }
+        ; Part 3 _LogFiles and Clipboard Preview
+        {
+            ; ---- Log Files ----
+            {
+            myGui.Add("Button", "ys section w70", "Del Sel").OnEvent("Click", DeleteSelectedLogFile)
+            myGui.Add("Button", "x+m w70", "Del All").OnEvent("Click", DeleteAllLogFiles)
+            
+            btnDuplicate := myGui.Add("Button", "xs w70", "Duplicate")
+            btnDuplicate.OnEvent("Click", (*)=> ExecuteFunction("DuplicateLogFile"))
+            
+            btnRename := myGui.Add("Button", "x+m w70", "Rename")
+            btnRename.OnEvent("Click", RenameLogFile)
+    
+            myGui.Add("Text", "xs  w30", "Filter")
+            editFilter := myGui.Add("Edit", "x+m w110", "")
+            editFilter.OnEvent("Change", FilterLogFiles)
+    
+            lbLogFiles := myGui.Add("ListBox", "xs h430 w150 HScroll", LogFiles) 
+            lbLogFiles.OnEvent("Change", LoadSelectedLogFile)
+            }
+            ; ---- Clipboard Edit ----
+            {
+                myGui.Add("Text", "ys+5 section", "Clipboard Content")
+                btnSaveEditClipboard := myGui.Add("Button", "ys-5 w120", "Save Changes")
+                btnSaveEditClipboard.OnEvent("Click", SaveEditClipboardChanges)        
+                editClipboard := myGui.Add("Edit", "xs w240 h470 +HScroll -wrap") ;no vName, no need to save in the ini file
+    
+                if logfiles.Length > 0{
+                    lbLogFiles.Choose(1)  
+                    LoadSelectedLogFile()
+                }
+                ; if (A_Clipboard != editClipboard.Text)
+                ;     SaveClipboardToLogFile()
+            }
+        }
+        
+    }    
+
+    ; ---- Hotkeys ----
+    {
+        #c::        toggleGUI()     ; Win  + C
+        $^c::       Copy()          ; Ctrl + C
+        $^x::       Cut()           ; Ctrl + X
+        $^!c::      Append()        ; Ctrl + Alt   + C 
+        $^!x::      CutAppend()     ; Ctrl + Alt   + X 
+        $^+c::      Prepend()       ; Ctrl + Shift + P 
+        $^+x::      CutPrepend()    ; Ctrl + Shift + X 
+        $!i::       Inject()        ; Alt  + I 
+        $#z::       Undo()          ; Win  + Z 
+        $#y::       Redo()          ; Win  + Y 
+        $#v::       Paste()         ; Win  + V
+        $#F::       myFormat()        ; Win  + F
+        $^s::       SaveChanges()   ; Ctrl + S
+
+
+        $Tab::CycleFocus()
+        $+Tab::CycleFocus()
+
+        CycleFocus(*){
+            global
+            if !WinActive(mygui.hwnd){
+                Send "{Tab}"
+                return
+            }
+
+            zControls := [editFilter, lbLogFiles, editClipboard]
+            ; Check if Shift is held
+            if GetKeyState('Shift') {
+                ; Cycle backwards if Shift is held
+                activeControlIndex -= 1
+                if activeControlIndex < 1
+                    activeControlIndex := zControls.length
+            } else {
+                ; Cycle forwards if Shift is not held
+                activeControlIndex += 1
+                if activeControlIndex > zControls.length
+                    activeControlIndex := 1
+            }
+            
+            zControls[activeControlIndex].Focus()
+        }
+
+        ; ----Encapsulation ----
+        {
+        ;     $(:: Encapsulate()
+        ;     $[:: Encapsulate()
+        ;     ${:: Encapsulate()
+        ;     $":: Encapsulate()
+        ;     $<:: Encapsulate()
+        ;     ; $':: Encapsulate 
+            
+        ;     Encapsulate(*) {
+        ;         if winactive(mygui.hwnd){
+        ;             send substr(A_ThisHotkey,2)
+        ;             return
+        ;         }
+        ;         Copy()
+        ;         switch substr(A_ThisHotkey,2) {
+        ;         Case "[": A_Clipboard := "[" A_Clipboard "]"
+        ;         Case "(": A_Clipboard := "(" A_Clipboard ")"  
+        ;         Case "{": A_Clipboard := "{" A_Clipboard "}"
+        ;         Case '"': A_Clipboard := '"' A_Clipboard '"'
+        ;         Case "<": A_Clipboard := "<" A_Clipboard ">"
+        ;         ; Case "'": A_Clipboard := "'" A_Clipboard "'"
+        ;         }
+        ;         paste()
+        ;     }
+        }        
+    }
+    ; ---- Gui Events ----
+    {
+        
+        ClipChanged(DataType) {
+            global
+            ClipboardDatatype := DataType
+        }
+
+        Gui_Close(*){
+            SaveState()               
+            ExitApp()
+        }
+
+        OnSize(GuiObj, MinMax, Width, Height){    
+            Anchor(editFind.Hwnd, "w")
+            Anchor(editReplace.Hwnd, "w")    
+            Anchor(btnSave.Hwnd, "x")
+            Anchor(btnLoad.Hwnd, "x")    
+
+            Anchor(Separator1.Hwnd, "w")
+
+            Anchor(lbLogFiles.Hwnd, "h")
+            Anchor(editClipboard.Hwnd,"hw")
+        }
+
+        AHK_NOTIFYICON(wParam, lParam,*){
+            if (lParam = 0x201) ; WM_LBUTTONDOWN
+            {
+                showForm()
+            }
+        }
+    }
+    ; ---- Gui Functions ----
+    {
+        DuplicateLogFile(*){
+            global
+            if (currentIndex = 0) {
+                MsgBox "Please select a file to duplicate."
+                return
+            }
+        
+            oldFileName := logFiles[currentIndex]
+            oldFilePath := historyDir "\" oldFileName ".txt"
+        
+            ; Extract timestamp part (assuming it's always at the start)
+            RegExMatch(oldFileName, "^\d{4}-\d{2}-\d{2}-\d{6}", &match)
+            timestamp := match[0]
+        
+            if (!timestamp) {
+                MsgBox "Invalid file format. Cannot duplicate."
+                return
+            }
+        
+            newName := timestamp " Copy"
+            newFilePath := historyDir . "\" . newName . ".txt"
+        
+            ; Ensure the new name does not exist
+            counter := 1
+            while FileExist(newFilePath) {
+                counter++
+                newName := newName " (" . counter . ")"
+                newFilePath := historyDir "\" . newName . ".txt"
+            } 
+            FileCopy(oldFilePath, newFilePath)
+            LogFiles.InsertAt(currentIndex, newName)
+            lbLogFiles.Delete
+            lbLogFiles.add(logFiles)
+            lbLogFiles.choose(currentIndex)
+        }
+        SwapLanguages(*) {
+            global 
+            temp := ddlSourceLanguage.Text
+            ddlSourceLanguage.Text := ddlTargetLanguage.Text
+            ddlTargetLanguage.Text := temp
+        }
+        Help(*) {
+            HelpHTML := "
+            (
+            <html>
+            <body>
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th, td { border: 1px solid black; padding: 5px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                </style>
+                <table>
+                    <tr><th>Hotkey</th><th>Action</th></tr>
+                    <tr><td>Win + C</td><td>Toggle GUI</td></tr>
+                    <tr><td>Ctrl + C</td><td>Copy</td></tr>
+                    <tr><td>Ctrl + X</td><td>Cut</td></tr>
+                    <tr><td>Win + V</td><td>Paste by chosen PasteMethod</td></tr>
+                    <tr><td>Win + F</td><td>Format Selected Text</td></tr>
+                    <tr><td>Ctrl + Alt + C</td><td>Append</td></tr>
+                    <tr><td>Ctrl + Alt + X</td><td>Cut Append</td></tr>
+                    <tr><td>Ctrl + Shift + P</td><td>Prepend</td></tr>
+                    <tr><td>Ctrl + Shift + X</td><td>Cut Prepend</td></tr>
+                    <tr><td>Alt + I</td><td>Inject</td></tr>
+                    <tr><td>Win + Z</td><td>Undo</td></tr>
+                    <tr><td>Win + Y</td><td>Redo</td></tr>
+                    <tr><td>Ctrl + S</td><td>If gui active, Save Edit Changes</td></tr>
+                </table>
+                </br></br>
+                <p>For advanced clipboard management, consider using <a href='https://hluk.github.io/CopyQ/' target='_blank'>CopyQ</a>.</p>
+                <p>For advanced translator with ocr, consider using <a href='https://apps.kde.org/en-gb/crowtranslate/' target='blank'>Crow Translate</a>.</p>
+            </body>
+            </html>
+            )"
+        
+            ; Create GUI
+            helpGui := Gui(, "Hotkey Guide")
+            browser := helpGui.AddActiveX("x10 y10 w500 h500", "Shell.Explorer")
+        
+            ; Wait until the ActiveX control is fully ready
+            ComObject := browser.Value
+            if (ComObject) {
+                ComObject.Navigate("about:blank")  ; Navigate to an empty page first
+                Loop {
+                    Sleep 50  ; Wait until the page is ready
+                } Until !ComObject.Busy && ComObject.ReadyState = 4
+        
+                ComObject.document.write(HelpHTML)  ; Inject the HTML content
+                ComObject.document.close()
+            }
+            helpGui.Opt("+AlwaysOnTop")
+            helpGui.Show("AutoSize ")
+        }
+        showForm(*) {
+            
+            myGui.Show("x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
+            guiManager.LoadState()
+
+        }
+        toggleGUI(*){
+            guiManager.SaveState()
+            if IsSet(myGui) && myGui {
+                if WinActive(myGui.Hwnd) {
+                    myGui.Hide()
+                } else {
+                    showForm()
+                }
+            } else {
+                
+            }
+        }
+        RenameLogFile(*) {
+            global 
+        
+            if (currentIndex = 0) {
+                MsgBox "Please select a file to rename."
+                return
+            }
+        
+            oldFileName := logFiles[currentIndex]
+            oldFilePath := historyDir "\" oldFileName ".txt"
+        
+            ; Extract timestamp part (assuming it's always at the start)
+            RegExMatch(oldFileName, "^\d{4}-\d{2}-\d{2}-\d{6}", &match)
+            timestamp := match[0]
+        
+            if (!timestamp) {
+                MsgBox "Invalid file format. Cannot rename."
+                return
+            }
+        
+            ; Ask for a new name
+            myGui.Opt("-AlwaysOnTop")
+            IB := InputBox("Enter a new name for the log file:", "Rename Log File")
+            myGui.Opt("+AlwaysOnTop")
+            newName := IB.Value
+            if (IB.Result = "Cancel" || newName = "")
+                return
+            
+            ; Remove old custom name if one exists
+            newFileName := timestamp " " newName
+            newFilePath := historyDir "\" newFileName ".txt"
+        
+            ; Ensure the new name does not exist
+            while FileExist(newFilePath) {
+                myGui.Opt("-AlwaysOnTop")
+                IB := InputBox(newfilename " already exists.`nEnter a new name for the log file:","Rename Log File")
+                myGui.Opt("+AlwaysOnTop")
+                newName := IB.Value                
+                if (IB.Result := "Cancel" || newName = "")
+                    return
+                newFileName := timestamp " " newName
+                newFilePath := historyDir "\" newFileName ".txt"
+            } 
+            FileMove(oldFilePath, newFilePath)
+            logFiles[currentIndex] := newFileName
+            lbLogFiles.Delete
+            lbLogFiles.add(logFiles)
+            lbLogFiles.choose(currentIndex)
+        }
+        FilterLogFiles(*) {
+            global
+            currentIndex := 0
+            lbLogFiles.choose(0)
+            searchTerm := editFilter.Text
+
+            LogFiles := []
+            Loop Files, historyDir . "\*.*"  
+            {
+                item := StrReplace(A_LoopFileName, ".txt", "")
+                if searchTerm = ""
+                    LogFiles.InsertAt(1, item)
+                else if (InStr(A_LoopFileName, searchTerm))  
+                    LogFiles.InsertAt(1, item)
+            }
+            lbLogFiles.delete
+            if LogFiles.length > 0 {
+                lbLogFiles.Add(LogFiles)
+            }
+            if LogFiles.length > 0{
+                lbLogFiles.choose(1)
+                LoadSelectedLogFile()
+            }
+        }
+        LoadSelectedLogFile(*) {
+            global 
+            currentIndex := lbLogFiles.Value
+            selectedFile := lbLogFiles.Text . ".txt"
+            if (currentIndex != 0) {
+                filePath := historyDir "\" selectedFile
+                editClipboard.Value := FileRead(filePath)
+                A_Clipboard := editClipboard.Value
+            }
+        }
+        DeleteSelectedLogFile(*) {
+            global
+            if (lbLogFiles.Value > 0) {
+                if (LogFiles.length = 1) {
+                    DeleteAllLogFiles()
+                    return
+                }
+        
+                selectedFile := lbLogFiles.text . ".txt"
+                filePath := historyDir "\" selectedFile
+                
+                ; Check if the file has a manual name
+                if RegExMatch(selectedFile, "^\d{4}-\d{2}-\d{2}-\d{6} (.+)") {
+                    userChoice := MsgBox("This file has a manual name. Do you still want to delete it?",, 3)  ; Yes/No/Cancel
+                    if (userChoice = "No" || userChoice = "Cancel") {
+                        return  ; Do nothing if No or Cancel is chosen
+                    }
+                }
+        
+                if FileExist(filePath) {
+                    FileRecycle(filePath)
+                    LogFiles.RemoveAt(lbLogFiles.Value)
+                    lbLogFiles.Delete(lbLogFiles.Value)
+        
+                    if (LogFiles.length > 0) {
+                        currentIndex := Min(currentIndex, LogFiles.length)  ; Ensure valid index
+                        lbLogFiles.Choose(currentIndex)
+                        LoadSelectedLogFile()
+                    } else {
+                        currentIndex := 0
+                        editClipboard.Value := ""
+                    }
+        
+                    UpdateStatusBar()
+                }
+            }
+        }
+        DeleteAllLogFiles(*) {
+            global
+            manualFilesExist := false
+            deletedFiles := []  ; Store deleted files
+            remainingFiles := []  ; Store files that were not deleted
+            
+            ; Check if ANY file has a manual name
+            Loop Files, historyDir "\*.txt" {
+                if RegExMatch(A_LoopFileName, "^\d{4}-\d{2}-\d{2}-\d{6} (.+)") {
+                    manualFilesExist := true
+                    break
+                }
+            }
+        
+            ; Ask user if they want to delete manually named files (Yes/No/Cancel)
+            if manualFilesExist {
+                userChoice := MsgBox("Some files have manual names. Do you want to delete them as well?",,"0x1000 3")
+                if (userChoice = "Cancel") {
+                    return  ; Stop if Cancel is chosen or no file exists
+                }
+            } else {
+                userChoice := "Yes"  ; If no manual files exist, proceed with deletion
+            }
+        
+            ; Loop through files and delete based on user choice
+            Loop Files, historyDir "\*.txt" {
+                isManual := RegExMatch(A_LoopFileName, "^\d{4}-\d{2}-\d{2}-\d{6} (.+)")
+                if (userChoice = "Yes" || !isManual) {
+                    FileRecycle(A_LoopFilePath)
+                    deletedFiles.Push(A_LoopFileName)
+                } else {
+                    remainingFiles.Push(StrReplace(A_LoopFileName, ".txt", ""))  ; Keep manually named files
+                }
+            }
+        
+            ; Update UI based on deleted files
+            if deletedFiles.Length > 0 {
+                LogFiles := remainingFiles
+                lbLogFiles.Delete()
+        
+                ; Re-add remaining files (if any)
+                if remainingFiles.Length > 0 {
+                    lbLogFiles.Add(LogFiles)
+                    lbLogFiles.Choose(1)
+                    currentIndex := 1
                     LoadSelectedLogFile()
                 } else {
                     currentIndex := 0
                     editClipboard.Value := ""
                 }
-    
+        
                 UpdateStatusBar()
             }
         }
-    }
-    
-    DeleteAllLogFiles(*) {
-        global
-        manualFilesExist := false
-        deletedFiles := []  ; Store deleted files
-        remainingFiles := []  ; Store files that were not deleted
-        
-        ; Check if ANY file has a manual name
-        Loop Files, historyDir "\*.txt" {
-            if RegExMatch(A_LoopFileName, "^\d{4}-\d{2}-\d{2}-\d{6} (.+)") {
-                manualFilesExist := true
-                break
+        UpdateStatusBar(*){
+            SB.SetText("There are " . LogFiles.Length . " items in Clipboard History.")
+        }
+        SaveState(*){
+            guiManager.SaveState()
+        }
+        SaveEditClipboardChanges(*){
+            if lbLogfiles.value =0
+                return
+            A_Clipboard := editClipboard.text
+            targetFile := historyDir "\" . lbLogFiles.text . ".txt"
+            FileDelete(targetFile)
+            FileAppend(A_Clipboard, targetFile)
+        }
+        SaveChanges(*){
+            if WinActive(myGui) {
+                SaveEditClipboardChanges()
+                guiManager.SaveState()
+            }else{
+                Send("{ctrl Down}s{ctrl up}")
             }
         }
-    
-        ; Ask user if they want to delete manually named files (Yes/No/Cancel)
-        if manualFilesExist {
-            userChoice := MsgBox("Some files have manual names. Do you want to delete them as well?",,"0x1000 3")
-            if (userChoice = "Cancel") {
-                return  ; Stop if Cancel is chosen or no file exists
+        ToggleActions(*) {
+            global 
+        
+            activeTab := tabControl.Value  
+            checkState := 0  ; Assume all in the current tab are checked
+            changeNeeded := false  ; Track if other tabs would be affected
+        
+            ; Check if any checkbox in the current tab is unchecked
+            for ctrl in actionCheckboxes {
+                if (ctrl.Visible && ctrl.Value = 0) {  
+                    checkState := 1  ; If any is unchecked, we set checkState to check all
+                    break
+                }
             }
-        } else {
-            userChoice := "Yes"  ; If no manual files exist, proceed with deletion
-        }
-    
-        ; Loop through files and delete based on user choice
-        Loop Files, historyDir "\*.txt" {
-            isManual := RegExMatch(A_LoopFileName, "^\d{4}-\d{2}-\d{2}-\d{6} (.+)")
-            if (userChoice = "Yes" || !isManual) {
-                FileDelete(A_LoopFilePath)
-                deletedFiles.Push(A_LoopFileName)
-            } else {
-                remainingFiles.Push(StrReplace(A_LoopFileName, ".txt", ""))  ; Keep manually named files
+        
+            ; Apply checkState only to checkboxes in the current tab
+            for ctrl in actionCheckboxes {
+                if (ctrl.Visible)  
+                    ctrl.Value := checkState
+            }
+        
+            ; Check if applying to all tabs would change anything
+            for ctrl in actionCheckboxes {
+                if (!ctrl.Visible && ctrl.Value != checkState) {
+                    changeNeeded := true
+                    break
+                }
+            }
+        
+            ; Ask only if other tabs have checkboxes that would change
+            if (changeNeeded && MsgBox("Apply this change to all tabs?", "Confirmation", "Y/N") = "Yes") {
+                for ctrl in actionCheckboxes {
+                    ctrl.Value := checkState
+                }
             }
         }
-    
-        ; Update UI based on deleted files
-        if deletedFiles.Length > 0 {
-            LogFiles := remainingFiles
-            lbLogFiles.Delete()
-    
-            ; Re-add remaining files (if any)
-            if remainingFiles.Length > 0 {
-                lbLogFiles.Add(LogFiles)
-                lbLogFiles.Choose(1)
-                currentIndex := 1
-                LoadSelectedLogFile()
-            } else {
-                currentIndex := 0
-                editClipboard.Value := ""
+        
+        
+        applyActionCheckboxes(*) {
+            global 
+        
+            currentTabOnly := chCurrentTabOnly.Value  ; Get checkbox state
+        
+            for ctrl in actionCheckboxes {
+                if (ctrl.Value && (!currentTabOnly || ctrl.Visible)) {  
+                    FunctionName := ctrl.Text
+                    ExecuteFunction(FunctionName)
+                }
             }
-    
-            UpdateStatusBar()
-        }
-    }
-    
-    
-
-    UpdateStatusBar(*){
-        SB.SetText("There are " . LogFiles.Length . " items in Clipboard History.")
-    }
-
-    SaveState(*){
-        guiManager.SaveState()
-    }
-    
-    SaveEditClipboardChanges(*){
-        if lbLogfiles.value =0
-            return
-        A_Clipboard := editClipboard.text
-        targetFile := historyDir "\" . lbLogFiles.text . ".txt"
-        FileDelete(targetFile)
-        FileAppend(A_Clipboard, targetFile)
-    }
-}
-; ====== GUI EVENTS ======
-{
-    Gui_Close(*){
-        SaveState()               
-        ExitApp()
-    }
-
-    OnSize(GuiObj, MinMax, Width, Height){    
-        Anchor(editFind.Hwnd, "w")
-        Anchor(editReplace.Hwnd, "w")    
-        Anchor(btnSave.Hwnd, "x")
-        Anchor(btnLoad.Hwnd, "x")    
-
-        Anchor(Separator1.Hwnd, "w")
-
-        Anchor(lbLogFiles.Hwnd, "h")
-        Anchor(editClipboard.Hwnd,"hw")
-    }
-
-    AHK_NOTIFYICON(wParam, lParam,*){
-        if (lParam = 0x201) ; WM_LBUTTONDOWN
-        {
-            showForm()
-        }
-    }
-}
-; ====== MAIN FUNCTIONS ======
-{
-    Input(*){
-        myGui.opt("-AlwaysOnTop")
-        userInput := InputBox("Enter text to copy:", "Clipboard Input")
-        myGui.opt("+AlwaysOnTop")
-
-        if userInput.Result = "OK" && userInput.Value != "" {
-            A_Clipboard := userInput.Value
-            SaveClipboardToLogFile()
-            ; MsgBox "Text copied to clipboard: `n" userInput.Value
-        } else {
-            ; MsgBox "No text entered. Clipboard unchanged."
-        }
-    }
-
-    Copy(*) {
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
         
-        previousClipboard := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}c{ctrl up}")
-        
-        if !ClipWait(3) || (ClipboardDatatype = !Datatype_Text) { 
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-            SaveClipboardToLogFile()
-            if AutoApply.Value 
-                applyActionCheckboxes()
-        }
-        if flag
-            toggleGUI()
-    }
-
-    Format(*){
-        global
-        ddlAfterPasteAction.choose(1) ; "None" = don't cycle
-        AutoApply.value := 1
-        Copy()
-        Paste()
-    }
-
-    Cut(*) {
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
-
-        previousClipboard := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}x{ctrl up}")
-        if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-            SaveClipboardToLogFile()
-            if AutoApply.Value 
-                applyActionCheckboxes()            
-        }
-        if flag
-            toggleGUI()
-    }
-
-    Append(*) { 
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
-
-        previousClipboard := A_Clipboard
-        This := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}c{ctrl up}")
-        if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-            appendMethod := AppendBy.Text
-            appendSeparator := "`r`n"  ; Default to Linebreak
-            if (appendMethod = "Space")
-                appendSeparator := " "
-            else if (appendMethod = "Tab")
-                appendSeparator := "`t"
-    
-            if (This != "") 
-                A_Clipboard := This appendSeparator A_Clipboard
-    
-            SaveClipboardToLogFile()  
-            if AutoApply.Value 
-                applyActionCheckboxes()            
-        }
-        if flag
-            toggleGUI()
-    }
-
-    CutAppend(*) {
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
-
-        previousClipboard := A_Clipboard        
-        This := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}x{ctrl up}")
-        if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-            appendMethod := AppendBy.Text
-            appendSeparator := "`r`n"  ; Default to Linebreak
-    
-            if (appendMethod = "Space")
-                appendSeparator := " "
-            else if (appendMethod = "Tab")
-                appendSeparator := "`t"
-    
-            if (This != "") 
-                A_Clipboard := This appendSeparator A_Clipboard
-    
-            SaveClipboardToLogFile()  
-            if AutoApply.Value 
-                applyActionCheckboxes() 
-        }
-        if flag
-            toggleGUI()        
-    } 
-
-    Prepend(*) {
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
-    
-        previousClipboard := A_Clipboard
-        This := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}c{ctrl up}")
-        if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-            prependMethod := AppendBy.Text  ; Using the same dropdown selection
-            prependSeparator := "`r`n"      ; Default to Linebreak
-        
-            if (prependMethod = "Space")
-                prependSeparator := " "
-            else if (prependMethod = "Tab")
-                prependSeparator := "`t"
-        
-            if (This != "") 
-                A_Clipboard := A_Clipboard prependSeparator This
-        
-            SaveClipboardToLogFile()
-            if AutoApply.Value 
-                applyActionCheckboxes()
-        }    
-        if flag
-            toggleGUI()
-    }
-    
-    CutPrepend(*) {
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
-    
-        previousClipboard := A_Clipboard        
-        This := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}x{ctrl up}")
-        if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-        prependMethod := AppendBy.Text
-        prependSeparator := "`r`n"  ; Default to Linebreak
-    
-        if (prependMethod = "Space")
-            prependSeparator := " "
-        else if (prependMethod = "Tab")
-            prependSeparator := "`t"
-    
-        if (This != "") 
-            A_Clipboard := A_Clipboard prependSeparator This
-    
-        SaveClipboardToLogFile()
-        if AutoApply.Value 
-            applyActionCheckboxes()
-        }       
-        if flag
-            toggleGUI()        
-    }
-    
-    Undo(*) {
-        LoopHistory(1)
-    }
-
-    Redo(*) {
-        LoopHistory(-1)
-    }
-
-    SaveClipboardToLogFile(*) {
-        global
-        
-        fileName := FormatTime(A_Now, "yyyy-MM-dd-HHmmss")
-        FileAppend(A_Clipboard, historyDir "\" . fileName . ".txt")
-
-        ; Add to history array
-        LogFiles.InsertAt(1, fileName)
-
-        ; If history exceeds the limit, delete the oldest file
-        if (LogFiles.Length > historyLimit) {
-            oldFile := LogFiles.RemoveAt(LogFiles.Length)  ; Remove from the array (we're storing them in reverse order)
-            FileDelete(oldFile)                      
-        }
-
-        currentIndex := 1
-        UpdateStatusBar()
-
-        ; Add new file to the top of ListBox
-        lbLogFiles.delete()
-        lbLogFiles.add(LogFiles)
-        lbLogFiles.Choose(1)  
-        LoadSelectedLogFile()
-    }
-
-    Inject(*){
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()    previousClipboard := A_Clipboard
-        A_Clipboard := ""
-        Send("{ctrl Down}c{ctrl up}")
-        if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-            A_Clipboard := previousClipboard
-            ; MsgBox "The attempt to copy text onto the clipboard failed."
-        } else {
-            EditPaste A_Clipboard, editClipboard
-            A_Clipboard := editClipboard.Text     
-            SaveClipboardToLogFile()
-        }
-        if flag
-            toggleGUI()
-    }
-
-    LoopHistory(direction) {
-        global 
-        newIndex := currentIndex + direction
-
-        ; Check if the new index is within valid bounds
-        if (newIndex >= 1 && newIndex <= LogFiles.Length) {
-            currentIndex := newIndex ;update the global currentIndex
-            fileToRead := historyDir . "\" . LogFiles[currentIndex] .  ".txt"
-            A_Clipboard := FileRead(fileToRead)
             editClipboard.Value := A_Clipboard
-            lbLogFiles.Choose(currentIndex)
-        } else {
-            MsgBox("No more history in this direction.",,0x1000)
         }
-    }
-    Paste(*) {
-        global
-        flag := WinActive(myGui.hwnd)
-        if flag
-            toggleGUI()
-    
-        ; Get the selected text from editClipboard
-        originalClipboard := A_Clipboard  ; Store current clipboard
-        selectedText := EditGetSelectedText(editClipboard.hwnd)
-    
-        if selectedText {
-            A_Clipboard := selectedText  ; Temporarily set clipboard to selected text
-            pasteContent := selectedText
-        } else {
-            pasteContent := A_Clipboard
+        
+        ExecuteFunction(FunctionName) {
+            previousClipboard := A_Clipboard
+            if IsFunc(FunctionName) {
+                %FunctionName%.Call() ; Call function dynamically
+            } else {
+                Switch FunctionName, false
+                {
+                    Case "test"      : MsgBox("test")
+                    Default: MsgBox("Function '" FunctionName "' not found!")
+                }
+            }
+            try editClipboard.Value := A_Clipboard
         }
-    
-        ; Get selected method from DropDownList
-        pasteMethod := ddlPasteMethod.Text
-    
-        ; Use the selected method for pasting
-        if (pasteMethod = "Ctrl+V") {
-            Send("{ctrl Down}v{ctrl up}")
-        } else if (pasteMethod = "SendText") {
-            SendText(pasteContent)  ; Send raw text
-        } else if (pasteMethod = "SendInput") {
-            SendInput(pasteContent)  ; Simulate typing
+        Replace(*) {
+            ; Validate input: Ensure the "Find" field is not empty
+            if (editFind.text = "") {
+                MsgBox("Error: 'Find' field cannot be empty!", "Input Error", 0x30)
+                return
+            }
+            ; Assign defaults if fields are empty
+            if (editStartingPos.text = "")
+                editStartingPos.text := "1"
+            if (editLimit.text = "")
+                editLimit.text := "-1"
+            limit := editLimit.Value + 0
+            startingPos := editStartingPos.Value + 0
+            ; If Regex mode is enabled, use RegExReplace
+            if chRegex.value {
+                A_Clipboard := RegExReplace(A_Clipboard, editFind.text, editReplace.text, , limit, startingPos)
+            } else {
+                A_Clipboard := StrReplace(A_Clipboard, editFind.text, editReplace.text, chCaseSensitive.Value, , limit)
+            }
+            if (previousClipboard = A_Clipboard) {
+                MsgBox("No matches found for '" editFind.text "'!", "No Change", 0x40)
+            }
         }
-    
-        ; Handle cycling through history
-        selectedMode := ddlAfterPasteAction.Text
-        if (selectedMode = "Previous") {
+        SaveRegexValues(*) {
+            fileName := InputBox("Enter file name", "Enter the desired file name or leave it blank to select a file:", "").value
+            
+            if (fileName == "") 
+                return
+            Folder := A_ScriptDir "\regex"
+            if !DirExist(Folder)
+                DirCreate(Folder)
+            filePath := Folder "\" StrReplace(fileName ".edit",".edit.edit",".edit")
+            try 
+                FileDelete(filePath) 
+            FileAppend("Find: " editFind.Value "`nReplace: " editReplace.Value "`n", filePath)
+            MsgBox("Saved regex values to " filePath)
+        }
+        LoadRegexValues(*) {
+            myGui.Opt("-AlwaysOnTop")
+            filePath := FileSelect(3, , "Open a file", "Text Documents (*.edit; *.doc)")
+            myGui.Opt("+AlwaysOnTop")
+            if filePath = ""
+                return
+            fileContent := FileRead(filePath)
+            ; Assuming format "Find: <value>" and "Replace: <value>"
+            findMatch := RegExMatch(fileContent, "Find: (.*)")
+            if (findMatch) {
+                editFind.Value := findMatch[1]
+            }
+            replaceMatch := RegExMatch(fileContent, "Replace: (.*)")
+            if (replaceMatch) {
+                editReplace.Value := replaceMatch[1]
+            }
+            MsgBox("Loaded regex values from " filePath)           
+        }
+        Input(*){
+            myGui.opt("-AlwaysOnTop")
+            userInput := InputBox("Enter text to copy:", "Clipboard Input")
+            myGui.opt("+AlwaysOnTop")
+
+            if userInput.Result = "OK" && userInput.Value != "" {
+                A_Clipboard := userInput.Value
+                SaveClipboardToLogFile()
+                ; MsgBox "Text copied to clipboard: `n" userInput.Value
+            } else {
+                ; MsgBox "No text entered. Clipboard unchanged."
+            }
+        }
+        Copy(*) {
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+            
+            previousClipboard := A_Clipboard
+            A_Clipboard := ""
+            Send("{ctrl Down}c{ctrl up}")
+            
+            if !ClipWait(3) || (ClipboardDatatype = !Datatype_Text) { 
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                SaveClipboardToLogFile()
+                if chAutoApply.Value 
+                    applyActionCheckboxes()
+            }
+            if flag
+                toggleGUI()
+        }
+        myFormat(*){
+            global
+            ddlAfterPasteAction.choose(1) ; "None" = don't cycle
+            tmp := chAutoApply.Value 
+            chAutoApply.Value := false ;otherwise Copy() may apply format
+            Copy()
+            applyActionCheckboxes()
+            SaveClipboardToLogFile()
+            Paste()
+            chAutoApply.Value := tmp
+        }
+        Cut(*) {
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+
+            previousClipboard := A_Clipboard
+            A_Clipboard := ""
+            Send("{ctrl Down}x{ctrl up}")
+            if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                SaveClipboardToLogFile()
+                if chAutoApply.Value 
+                    applyActionCheckboxes()            
+            }
+            if flag
+                toggleGUI()
+        }
+        Append(*) { 
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+
+            previousClipboard := A_Clipboard
+            A_Clipboard := ""
+            Send("{ctrl Down}c{ctrl up}")
+            if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
+        
+                SaveClipboardToLogFile()  
+                if chAutoApply.Value 
+                    applyActionCheckboxes()            
+            }
+            if flag
+                toggleGUI()
+        }
+        CutAppend(*) {
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+
+            previousClipboard := A_Clipboard        
+            A_Clipboard := ""
+            Send("{ctrl Down}x{ctrl up}")
+            if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
+        
+                SaveClipboardToLogFile()  
+                if chAutoApply.Value 
+                    applyActionCheckboxes() 
+            }
+            if flag
+                toggleGUI()        
+        } 
+        Prepend(*) {
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+        
+            previousClipboard := A_Clipboard
+            A_Clipboard := ""
+            Send("{ctrl Down}c{ctrl up}")
+            if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
+            
+                SaveClipboardToLogFile()
+                if chAutoApply.Value 
+                    applyActionCheckboxes()
+            }    
+            if flag
+                toggleGUI()
+        }
+        CutPrepend(*) {
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+        
+            previousClipboard := A_Clipboard        
+            A_Clipboard := ""
+            Send("{ctrl Down}x{ctrl up}")
+            if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
+            
+                SaveClipboardToLogFile()
+                if chAutoApply.Value 
+                    applyActionCheckboxes()
+            }       
+            if flag
+                toggleGUI()        
+        }
+        SaveClipboardToLogFile(*) {
+            global
+            
+            fileName := FormatTime(A_Now, "yyyy-MM-dd-HHmmss")
+            FileAppend(A_Clipboard, historyDir "\" . fileName . ".txt")
+
+            ; Add to history array
+            LogFiles.InsertAt(1, fileName)
+
+            ; If history exceeds the limit, delete the oldest file
+            if (LogFiles.Length > historyLimit) {
+                oldFile := LogFiles.RemoveAt(LogFiles.Length)  ; Remove from the array (we're storing them in reverse order)
+                FileDelete(oldFile)                      
+            }
+
+            currentIndex := 1
+            UpdateStatusBar()
+
+            ; Add new file to the top of ListBox
+            lbLogFiles.delete()
+            lbLogFiles.add(LogFiles)
+            lbLogFiles.Choose(1)  
+            LoadSelectedLogFile()
+        }
+        Inject(*){
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()    previousClipboard := A_Clipboard
+            A_Clipboard := ""
+            Send("{ctrl Down}c{ctrl up}")
+            if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                A_Clipboard := previousClipboard
+                ; MsgBox "The attempt to copy text onto the clipboard failed."
+            } else {
+                EditPaste A_Clipboard, editClipboard
+                A_Clipboard := editClipboard.Text     
+                SaveClipboardToLogFile()
+            }
+            if flag
+                toggleGUI()
+        }
+        Paste(*) {
+            global
+            flag := WinActive(myGui.hwnd)
+            if flag
+                toggleGUI()
+        
+            ; Get the selected text from editClipboard
+            originalClipboard := A_Clipboard  ; Store current clipboard
+            selectedText := EditGetSelectedText(editClipboard.hwnd)
+        
+            if selectedText {
+                A_Clipboard := selectedText  ; Temporarily set clipboard to selected text
+                pasteContent := selectedText
+            } else {
+                pasteContent := A_Clipboard
+            }
+            ; Get selected method from DropDownList
+            pasteMethod := ddlPasteMethod.Text
+        
+            ; Use the selected method for pasting
+            ;@TODO consider Send("{Shift Down}{Insert}{Shift Up}")
+            if (pasteMethod = "Ctrl+V") {
+                Send("{ctrl Down}v{ctrl up}")
+            } else if (pasteMethod = "SendText") {
+                SendText(pasteContent)  ; Send raw text
+            } else if (pasteMethod = "SendInput") {
+                SendInput(pasteContent)  ; Simulate typing
+            }
+        
+            ; Handle cycling through history
+            selectedMode := ddlAfterPasteAction.Text
+            if (selectedMode = "Previous") {
+                LoopHistory(1)
+            } else if (selectedMode = "Next") {
+                LoopHistory(-1)
+            }
+        
+            ; Restore the original clipboard if it was modified
+            if (A_Clipboard != pasteContent and selectedMode = "None") {
+                ; Sleep 100  ; Give some time for the paste to complete
+                A_Clipboard := originalClipboard
+            }
+        
+            if flag
+                toggleGUI()
+        }
+        Undo(*) {
             LoopHistory(1)
-        } else if (selectedMode = "Next") {
+        }
+        Redo(*) {
             LoopHistory(-1)
         }
-    
-        ; Restore the original clipboard if it was modified
-        if (A_Clipboard != pasteContent and selectedMode = "None") {
-            ; Sleep 100  ; Give some time for the paste to complete
-            A_Clipboard := originalClipboard
-        }
-    
-        if flag
-            toggleGUI()
-    }
-    
+        LoopHistory(direction) {
+            global 
+            newIndex := currentIndex + direction
 
-}
-; ====== MAIN clipboard mod functions  ====== 
-{
-
-    ToggleActions(*) {
-        global 
-        checkState := 0  ; Assume all are checked
-    
-        ; Check if any checkbox is unchecked
-        for _, checkbox in actionCheckboxes {
-            if (checkbox.Value = 0) {  
-                checkState := 1  ; If any is unchecked, we set checkState to check all
-                break
+            ; Check if the new index is within valid bounds
+            if (newIndex >= 1 && newIndex <= LogFiles.Length) {
+                currentIndex := newIndex ;update the global currentIndex
+                fileToRead := historyDir . "\" . LogFiles[currentIndex] .  ".txt"
+                A_Clipboard := FileRead(fileToRead)
+                editClipboard.Value := A_Clipboard
+                lbLogFiles.Choose(currentIndex)
+            } else {
+                MsgBox("No more history in this direction.",,0x1000)
             }
         }
-    
-        ; Apply checkState to all checkboxes
-        for _, checkbox in actionCheckboxes {
-            checkbox.Value := checkState
-        }
-    }
-    
-
-    applyActionCheckboxes(*) {
-        for ctrl in actionCheckboxes {
-            if (ctrl.Value) { ; Check if checkbox is checked
-                FunctionName := ctrl.Text
-                ExecuteFunction(FunctionName)
-            }
-        }
-        editClipboard.Value := A_Clipboard
-    }
-    ExecuteFunction(FunctionName) {
-        previousClipboard := A_Clipboard
-        if IsFunc(FunctionName) {
-            %FunctionName%.Call() ; Call function dynamically
-        } else {
-            Switch FunctionName, false
-            {
-                Case "test"      : MsgBox("test")
-                Default: MsgBox("Function '" FunctionName "' not found!")
-            }
-        }
-        try editClipboard.Value := A_Clipboard
-    }
-    Replace(*) {
-        ; Validate input: Ensure the "Find" field is not empty
-        if (editFind.text = "") {
-            MsgBox("Error: 'Find' field cannot be empty!", "Input Error", 0x30)
-            return
-        }
-        ; Assign defaults if fields are empty
-        if (editStartingPos.text = "")
-            editStartingPos.text := "1"
-        if (editLimit.text = "")
-            editLimit.text := "-1"
-        limit := editLimit.Value + 0
-        startingPos := editStartingPos.Value + 0
-        ; If Regex mode is enabled, use RegExReplace
-        if chRegex.value {
-            A_Clipboard := RegExReplace(A_Clipboard, editFind.text, editReplace.text, , limit, startingPos)
-        } else {
-            A_Clipboard := StrReplace(A_Clipboard, editFind.text, editReplace.text, chCaseSensitive.Value, , limit)
-        }
-        if (previousClipboard = A_Clipboard) {
-            MsgBox("No matches found for '" editFind.text "'!", "No Change", 0x40)
-        }
-    }
-    SaveRegexValues(*) {
-        fileName := InputBox("Enter file name", "Enter the desired file name or leave it blank to select a file:", "").value
         
-        if (fileName == "") 
-            return
-        Folder := A_ScriptDir "\regex"
-        if !DirExist(Folder)
-            DirCreate(Folder)
-        filePath := Folder "\" StrReplace(fileName ".edit",".edit.edit",".edit")
-        try 
-            FileDelete(filePath) 
-        FileAppend("Find: " editFind.Value "`nReplace: " editReplace.Value "`n", filePath)
-        MsgBox("Saved regex values to " filePath)
-    }
-    LoadRegexValues(*) {
-        myGui.Opt("-AlwaysOnTop")
-        filePath := FileSelect(3, , "Open a file", "Text Documents (*.edit; *.doc)")
-        myGui.Opt("+AlwaysOnTop")
-        if filePath = ""
-            return
-        fileContent := FileRead(filePath)
-        ; Assuming format "Find: <value>" and "Replace: <value>"
-        findMatch := RegExMatch(fileContent, "Find: (.*)")
-        if (findMatch) {
-            editFind.Value := findMatch[1]
+        
+        Translate(*){
+            target := Languages[ddlTargetLanguage.text]
+            source := Languages[ddlSourceLanguage.text]
+            translation := Translator.Translate(A_Clipboard, 
+                                                target, 
+                                                source)
+            A_Clipboard := translation
+    
         }
-        replaceMatch := RegExMatch(fileContent, "Replace: (.*)")
-        if (replaceMatch) {
-            editReplace.Value := replaceMatch[1]
-        }
-        MsgBox("Loaded regex values from " filePath)           
+
     }
+    selectedSeparator(*) {
+        separator := ddlSeparator.text
+        switch separator {
+            case "Linebreak": separator := "`r`n"
+            case "Space": separator := " "
+            case "Tab": separator := "`t"
+            default: separator := ""
+        }
+        return separator
+    }
+   
 }
 
-; ====== USER clipboard mod functions ====== 
-
-;===============================================================================
-; @MODIFY(2) 
-;===============================================================================
-
-; Bellow this point add your new functions 
-    ; they just need to modify the clipboard as a final result
+; ==== @MODIFY(2) - USER clipboard mod functions ====
+    ; Bellow this point add your own functions, they just need to modify the clipboard as a final result
     ; Remember to add the function name to the actionCheckboxes array at @MODIFY(1)
-
 {
   
     Transclude(*) { 
@@ -1046,56 +1276,99 @@ ClipChanged(DataType) {
         A_Clipboard := This
 
     }
-    BreakLinesToSpaces() {
-        A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
-    }
-    ToUpperCase() {
-        A_Clipboard := StrUpper(A_Clipboard)
-    }
-    ToLowerCase() {
-        A_Clipboard := StrLower(A_Clipboard)
-    }
+    
+    ; BreakLinesToSpaces() {
+    ;     A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
+    ; }
+
     ReverseWords() {
         words := StrSplit(A_Clipboard, " ")
         A_Clipboard := ArrayToString(words, " ", true) ; Reverse order
     }
 
 
+; ---------------------------- 1. Text Manipulation ----------------------------
+
+ToUpperCase() {
+    A_Clipboard := StrUpper(A_Clipboard)
+}
+
+ToLowerCase() {
+    A_Clipboard := StrLower(A_Clipboard)
+}
+
+ToTitleCase() {
+    A_Clipboard := RegExReplace(A_Clipboard, "(\w)(\w*)", "$U1$2")
+}
+
+TrimClipboard() {
+    A_Clipboard := RTrim(LTrim(A_Clipboard))
+}
+
+SpaceToUnderscore() {
+    A_Clipboard := StrReplace(A_Clipboard, " ", "_")
+}
+
+RemoveDigits() {
+    A_Clipboard := RegExReplace(A_Clipboard, "\d", "")
+}
+
+RemoveSpecialChars() {
+    A_Clipboard := RegExReplace(A_Clipboard, "[^\w\s]", "")
+}
+
+RemoveHTMLTags() {
+    A_Clipboard := RegExReplace(A_Clipboard, "<.*?>", "")
+}
+
+ReplaceWord(wordToReplace, replacementWord) {
+    A_Clipboard := StrReplace(A_Clipboard, wordToReplace, replacementWord)
+}
+
+RemoveExtraSpaces() {
+    A_Clipboard := RegExReplace(A_Clipboard, "\s+", " ")
+}
+
+; ---------------------------- 2. Formatting ----------------------------
+
+NumberedList() {
+    A_Clipboard := RegExReplace(A_Clipboard, "(.*?)(\n|$)", "$N1$2")
+}
+
+BulletList() {
+    A_Clipboard := RegExReplace(A_Clipboard, "(.*?)(\n|$)", "• $1$2")
+}
+
+TsvToCsv() {
+    A_Clipboard := RegExReplace(A_Clipboard, "\t", ",")
+}
+
+ExcessLines() {
+    A_Clipboard := RegExReplace(A_Clipboard, "(\n\s*)+", "`n")
+}
+
+TabToSpace() {
+    A_Clipboard := StrReplace(A_Clipboard, "`t", "    ")
+}
+
+; ---------------------------- 4. Date & Time ----------------------------
+
+AddTimestamp() {
+    A_Clipboard := A_Now . "`n" . A_Clipboard
+}
+
+ReplaceDateWithToday() {
+    A_Clipboard := RegExReplace(A_Clipboard, "\d{4}-\d{2}-\d{2}", A_Now)
+}
 
 
+; ---------------------------- 10. Advanced ----------------------------
 
 
-
-
-
-    ; ----Encapsulation ----
-
-    $(:: Encapsulate()
-    $[:: Encapsulate()
-    ${:: Encapsulate()
-    $":: Encapsulate()
-    $<:: Encapsulate()
-    ; $':: Encapsulate 
-    
-    Encapsulate(*) {
-        if winactive(mygui.hwnd){
-            send substr(A_ThisHotkey,2)
-            return
-        }
-        Copy()
-        switch substr(A_ThisHotkey,2) {
-        case "[": A_Clipboard := "[" A_Clipboard "]"
-        case "(": A_Clipboard := "(" A_Clipboard ")"  
-        case "{": A_Clipboard := "{" A_Clipboard "}"
-        case '"': A_Clipboard := '"' A_Clipboard '"'
-        case "<": A_Clipboard := "<" A_Clipboard ">"
-        ; case "'": A_Clipboard := "'" A_Clipboard "'"
-        }
-        paste()
-    }
     
 }
-    ; ====== HELPER FUNCTIONS ======
+
+; ====== HELPER FUNCTIONS ======
 {
     IsFunc(FunctionName){
         Try{

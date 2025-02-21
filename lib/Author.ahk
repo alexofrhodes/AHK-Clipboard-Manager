@@ -32,7 +32,7 @@ addAuthorTray()  ; Automatically add links to the tray menu
 
 addAuthorTray(*) {
     ; TrayIcon := StrReplace(IconsFolder "\" . A_ScriptName, ".ahk", ".ico")
-    TrayIcon := StrReplace(A_ScriptDir "\" A_ScriptName (A_IsCompiled ? ".exe" : ".ahk"), ".ahk", ".ico")
+    TrayIcon := A_ScriptDir . "\" . StrReplace(A_ScriptName, A_IsCompiled ? ".exe" : ".ahk", ".ico")
     if FileExist(TrayIcon)
         TraySetIcon(TrayIcon)
 
