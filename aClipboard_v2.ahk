@@ -18,6 +18,8 @@ Version := "1.0.0"
     #SingleInstance Force
 
     #Include lib\Author.ahk
+
+    #Include lib\Array.ahk
     #Include lib\AnchorV2.ahk
 
     #Include lib\GuiState.ahk
@@ -228,7 +230,7 @@ Version := "1.0.0"
             editFilter.focus()
         }
     }
-    ;@BM1
+    ;@BM1 
     CreateControls(*){
         global
         ; Part 1
@@ -253,7 +255,7 @@ Version := "1.0.0"
                 MyMenuBar := MenuBar()
                 For value in MyArray{
                     MyMenuBar.Add(value, %value%)   
-                    targetFile := A_ScriptDir . "\icons\" . value . ".ico"
+                    targetFile := A_ScriptDir . "\lib\menubaricons\" . value . ".ico"
                     if (FileExist(targetFile))
                         MyMenuBar.SetIcon(value, targetFile) ; , IconNumber, IconWidth)
                 }
@@ -262,7 +264,7 @@ Version := "1.0.0"
             }
             ; ---- Find/Replace ----
             {
-                btnFind := myGui.Add("Button", "w150", "Find")
+                btnFind := myGui.Add("Button", "w40", "Find")
                 btnFind.Enabled := false
 
                     if useImageButtons{
@@ -275,9 +277,23 @@ Version := "1.0.0"
                         CreateImageButton(btnFind, 0, IBStyles["info-round"]*)
                     }
 
+                ;@BM add way to use ExtractByRegex 
+                btnExtractByRegex := myGui.Add("Button", "x+m w100", "ExtractByRegex")
+                btnExtractByRegex.OnEvent("Click", (*) => ExecuteFunction((*)=>ExtractByRegex(editFind.text)))
+                
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnExtractByRegex.Hwnd, "lib\guibuttonicons\regex.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnExtractByRegex.text := ""
+                    }else{
+                        CreateImageButton(btnExtractByRegex, 0, IBStyles["success-round"]*)
+                    }
+
                 editFind := myGui.Add("Edit", "w350 x+m veditFind", "") 
         
-                btnSave := myGui.Add("Button", "ys ", "Save")
+                btnSave := myGui.Add("Button", "ys w50", "Save")
                 btnSave.OnEvent("Click", SaveRegexValues)
                 
                     if useImageButtons{
@@ -291,7 +307,7 @@ Version := "1.0.0"
                     }
 
 
-                btnReplace := myGui.Add("Button", "xm w150", "Replace")
+                btnReplace := myGui.Add("Button", "xm w150 h50", "Replace")
                 btnReplace.OnEvent("Click", (*)=> ExecuteFunction("Replace"))
  
                     if useImageButtons{
@@ -304,9 +320,9 @@ Version := "1.0.0"
                         CreateImageButton(btnReplace, 0, IBStyles["success-round"]*)
                     }                
 
-                editReplace := myGui.Add("Edit", "x+m section w350 veditReplace") 
+                editReplace := myGui.Add("Edit", "x+m w350 section veditReplace") 
         
-                btnLoad := myGui.Add("Button", "ys", "Load")
+                btnLoad := myGui.Add("Button", "x+m w50", "Load")
                 btnLoad.OnEvent("Click", LoadRegexValues)
         
                     if useImageButtons{
@@ -319,8 +335,8 @@ Version := "1.0.0"
                         CreateImageButton(btnLoad, 0, IBStyles["info-round"]*)
                     }    
 
-                chRegex := myGui.Add("Checkbox", "xs vchRegex", "Regex")
-        
+                chRegex := myGui.Add("Checkbox", "xs vchRegex", "By Regex")
+                
                 chCaseSensitive := myGui.Add("Checkbox", "x+m vchCaseSensitive" , "CaseSensitive")
         
                 lblLimit := myGui.Add("Text", "x+m section", "Limit")
@@ -429,35 +445,34 @@ Version := "1.0.0"
         {
             ; ---- Actions ---- 
             { 
+                btnToggle := myGui.AddButton("xs w70 ", "Toggle")
+                btnToggle.OnEvent("Click", ToggleActions)
+    
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnToggle.Hwnd, "lib\guibuttonicons\Toggle.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnToggle.text := ""
+                    }else{
+                        CreateImageButton(btnToggle, 0, IBStyles["info-round"]*)
+                    }                   
 
-            btnGetChecked := myGui.Add("Button", "xm w150", "Apply")
-            btnGetChecked.OnEvent("Click", applyActionCheckboxes)
+                btnGetChecked := myGui.Add("Button", "x+m w70", "Apply")
+                btnGetChecked.OnEvent("Click", applyActionCheckboxes)
 
-                if useImageButtons{
-                    if !GuiButtonIcon(btnGetChecked.Hwnd, "lib\guibuttonicons\Apply.png",,) {
-                        MsgBox "Failed to set icon for button."
-                        ExitApp
-                    }
-                    btnGetChecked.text := ""
-                }else{
-                    CreateImageButton(btnGetChecked, 0, IBStyles["success-round"]*)
-                }    
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnGetChecked.Hwnd, "lib\guibuttonicons\Apply.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnGetChecked.text := ""
+                    }else{
+                        CreateImageButton(btnGetChecked, 0, IBStyles["success-round"]*)
+                    }    
 
-            chAutoApply := myGui.Add("Checkbox", "xm vchAutoApply", "Auto")
-            chCurrentTabOnly := myGui.Add("Checkbox", "x+m vchCurrentTabOnly", "Only Current Tab")
-            
-            btnToggle := myGui.AddButton("xs w150 ", "Toggle")
-            btnToggle.OnEvent("Click", ToggleActions)
-
-                if useImageButtons{
-                    if !GuiButtonIcon(btnToggle.Hwnd, "lib\guibuttonicons\Toggle.png",,) {
-                        MsgBox "Failed to set icon for button."
-                        ExitApp
-                    }
-                    btnToggle.text := ""
-                }else{
-                    CreateImageButton(btnToggle, 0, IBStyles["info-round"]*)
-                }                
+                chCurrentTabOnly := myGui.Add("Checkbox", "xm+80 vchCurrentTabOnly", "Only This Tab")
+                chAutoApply := myGui.Add("Checkbox", "xm+80 vchAutoApply", "Auto")
             }   
             
             ; Predefined tabs with specific checkboxes stored in a map
@@ -465,6 +480,7 @@ Version := "1.0.0"
             predefinedTabs := Map(
                 "1. Main", ["Replace", "Transclude", "Translate"],
                 "2. Common", ["ToUpperCase", "ToLowerCase", "ReverseWords", "TrimSpaces", "RemoveDigits"],
+                "3. Regex",["ExtractWebsites", "ExtractPhoneNumbers", "ExtractEmails"],
             )
     
             ; Remaining checkboxes (to be distributed into dynamic tabs)
@@ -588,8 +604,8 @@ Version := "1.0.0"
             }
             ; ---- Clipboard Edit ----
             {
-                myGui.Add("Text", "ys+5 section", "Clipboard Content")
-                btnSaveEditClipboard := myGui.Add("Button", "ys-5 w120", "Save Changes")
+                myGui.Add("Text", "ys+5 section", "Clipboard")
+                btnSaveEditClipboard := myGui.Add("Button", "ys-5 w100", "Save Changes")
                 btnSaveEditClipboard.OnEvent("Click", SaveEditClipboardChanges)     
                 
                     if useImageButtons{
@@ -642,6 +658,20 @@ Version := "1.0.0"
         $#F::       myFormat()                      ; Win  + F
         $^s::       SaveChanges()                   ; Ctrl + S
         $#T::       ExecuteFunction("Translate")    ; Win  + T
+
+        $del::     {
+            if !WinActive(mygui.hwnd){
+                Send "{Delete}"
+                return
+            }
+            GuiCtrlObj := MyGui.FocusedCtrl    
+            if (guictrlobj != lbLogFiles) {
+                Send "{Delete}"
+                return
+            }else{
+                DeleteSelectedLogFile()   
+            }          
+        } 
 
         $Tab::CycleFocus()
         $+Tab::CycleFocus()
@@ -1023,6 +1053,7 @@ Version := "1.0.0"
         SaveState(*){
             guiManager.SaveState()
         }
+        ;@BM Duplicate(), SaveEditClipboardChanges()
         SaveEditClipboardChanges(*){
             if lbLogfiles.value =0
                 return
@@ -1045,24 +1076,27 @@ Version := "1.0.0"
             activeTab := tabControl.Value  
             checkState := 0  ; Assume all in the current tab are checked
             changeNeeded := false  ; Track if other tabs would be affected
-        
+            
             ; Check if any checkbox in the current tab is unchecked
             for ctrl in actionCheckboxes {
-                if (ctrl.Visible && ctrl.Value = 0) {  
+                vis := ControlGetVisible(ctrl.Hwnd)
+                if (vis && ctrl.Value = 0) {  
                     checkState := 1  ; If any is unchecked, we set checkState to check all
                     break
                 }
             }
-        
+
             ; Apply checkState only to checkboxes in the current tab
             for ctrl in actionCheckboxes {
-                if (ctrl.Visible)  
+                vis := ControlGetVisible(ctrl.Hwnd)
+                if (vis)  
                     ctrl.Value := checkState
             }
         
             ; Check if applying to all tabs would change anything
             for ctrl in actionCheckboxes {
-                if (!ctrl.Visible && ctrl.Value != checkState) {
+                vis := ControlGetVisible(ctrl.Hwnd)
+                if (!vis && ctrl.Value != checkState) {
                     changeNeeded := true
                     break
                 }
@@ -1078,11 +1112,12 @@ Version := "1.0.0"
        
         applyActionCheckboxes(*) {
             global 
-        
+            guiManager.SaveState()
             currentTabOnly := chCurrentTabOnly.Value  ; Get checkbox state
         
             for ctrl in actionCheckboxes {
-                if (ctrl.Value && (!currentTabOnly || ctrl.Visible)) {  
+                vis := ControlGetVisible(ctrl.Hwnd)
+                if (ctrl.Value && (!currentTabOnly || vis)) {  
                     FunctionName := ctrl.Text
                     ExecuteFunction(FunctionName)
                 }
@@ -1123,7 +1158,7 @@ Version := "1.0.0"
         Replace(*) {
             ; Validate input: Ensure the "Find" field is not empty
             if (editFind.text = "") {
-                MsgBox("Error: 'Find' field cannot be empty!", "Input Error", 0x30)
+                MsgBox("Error: 'Find' field cannot be empty!", "Input Error", 0x30 0x1000)
                 return
             }
             ; Assign defaults if fields are empty
@@ -1144,37 +1179,37 @@ Version := "1.0.0"
             }
         }
         SaveRegexValues(*) {
+            myGui.Opt("-AlwaysOnTop")
             fileName := InputBox("Enter file name", "Enter the desired file name or leave it blank to select a file:", "").value
-            
-            if (fileName == "") 
+            myGui.Opt("+AlwaysOnTop")
+        
+            if (fileName == "")
                 return
-            Folder := A_ScriptDir "\regex"
+        
+            Folder := A_ScriptDir "\lib\RegexPatterns"
             if !DirExist(Folder)
                 DirCreate(Folder)
-            filePath := Folder "\" StrReplace(fileName ".edit",".edit.edit",".edit")
-            try 
-                FileDelete(filePath) 
-            FileAppend("Find: " editFind.Value "`nReplace: " editReplace.Value "`n", filePath)
-            MsgBox("Saved regex values to " filePath)
+            
+            filePath := Folder "\" fileName ".ini"
+            
+            IniWrite(editFind.Value, filePath, "Regex", "Find")
+            IniWrite(editReplace.Value, filePath, "Regex", "Replace")
+            
         }
+        
         LoadRegexValues(*) {
             myGui.Opt("-AlwaysOnTop")
-            filePath := FileSelect(3, , "Open a file", "Text Documents (*.edit; *.doc)")
+            filePath := FileSelect(3, A_ScriptDir "\lib\RegexPatterns\", "Open a file", "INI Files (*.ini)")
             myGui.Opt("+AlwaysOnTop")
+        
             if filePath = ""
                 return
-            fileContent := FileRead(filePath)
-            ; Assuming format "Find: <value>" and "Replace: <value>"
-            findMatch := RegExMatch(fileContent, "Find: (.*)")
-            if (findMatch) {
-                editFind.Value := findMatch[1]
-            }
-            replaceMatch := RegExMatch(fileContent, "Replace: (.*)")
-            if (replaceMatch) {
-                editReplace.Value := replaceMatch[1]
-            }
-            MsgBox("Loaded regex values from " filePath)           
+        
+            editFind.Value := IniRead(filePath, "Regex", "Find", "")
+            editReplace.Value := IniRead(filePath, "Regex", "Replace", "")
+        
         }
+        
         Input(*){
             myGui.opt("-AlwaysOnTop")
             userInput := InputBox("Enter text to copy:", "Clipboard Input")
@@ -1468,7 +1503,10 @@ Version := "1.0.0"
         }
         ChangeHistoryLimit(*) {
             global 
+            myGui.Opt("-AlwaysOnTop")
             newLimit := InputBox("Enter a new history limit (minimum: 1):", "Set History Limit")
+            myGui.Opt("+AlwaysOnTop")
+
             if (newLimit = "") || (newLimit = false)
                 return
             if !(IsInteger(newLimit)) || (newLimit < 1) {
@@ -1486,114 +1524,134 @@ Version := "1.0.0"
     ; Bellow this point add your own functions, they just need to modify the clipboard as a final result
     ; Remember to add the function name to the actionCheckboxes array at @MODIFY(1)
 {
-;@BM2
-; ---------------------------- 1. Text Manipulation ----------------------------
-  
-Transclude(*) { 
-    This := A_Clipboard
-    FileContent := ""        
-    FileRegex := "m)^C:\\.*\.(txt|ahk|bas|md|ahk|py|csv|log|ini|config)"
-    pos := 1
-    counter := 0
-    while (RegExMatch(This, FileRegex, &Match, pos)) {
-        FileName := Match[0]
-        if (FileExist(FileName)) {
-            FileContent := FileRead(FileName)
-            This := StrReplace(This, FileName, FileContent)
-        }
-        counter += 1
-        pos := Match.Pos + Match.Len
-    }
-    A_Clipboard := This
-
-}
-
-BreakLinesToSpaces() {
-    A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
-}
-
-ReverseWords() {
-    words := StrSplit(A_Clipboard, " ")
-    A_Clipboard := ArrayToString(words, " ", true) ; Reverse order
-}
-
-ToUpperCase() {
-    A_Clipboard := StrUpper(A_Clipboard)
-}
-
-ToLowerCase() {
-    A_Clipboard := StrLower(A_Clipboard)
-}
-
-ToTitleCase() {
-    A_Clipboard := RegExReplace(A_Clipboard, "(\w)(\w*)", "$U1$2")
-}
-
-TrimClipboard() {
-    A_Clipboard := RTrim(LTrim(A_Clipboard))
-}
-
-SpaceToUnderscore() {
-    A_Clipboard := StrReplace(A_Clipboard, " ", "_")
-}
-
-RemoveDigits() {
-    A_Clipboard := RegExReplace(A_Clipboard, "\d", "")
-}
-
-RemoveSpecialChars() {
-    A_Clipboard := RegExReplace(A_Clipboard, "[^\w\s]", "")
-}
-
-RemoveHTMLTags() {
-    A_Clipboard := RegExReplace(A_Clipboard, "<.*?>", "")
-}
-
-ReplaceWord(wordToReplace, replacementWord) {
-    A_Clipboard := StrReplace(A_Clipboard, wordToReplace, replacementWord)
-}
-
-RemoveExtraSpaces() {
-    A_Clipboard := RegExReplace(A_Clipboard, "\s+", " ")
-}
-
-; ---------------------------- 2. Formatting ----------------------------
-
-NumberedList() {
-    A_Clipboard := RegExReplace(A_Clipboard, "(.*?)(\n|$)", "$N1$2")
-}
-
-BulletList() {
-    A_Clipboard := RegExReplace(A_Clipboard, "(.*?)(\n|$)", "• $1$2")
-}
-
-TsvToCsv() {
-    A_Clipboard := RegExReplace(A_Clipboard, "\t", ",")
-}
-
-ExcessLines() {
-    A_Clipboard := RegExReplace(A_Clipboard, "(\n\s*)+", "`n")
-}
-
-TabToSpace() {
-    A_Clipboard := StrReplace(A_Clipboard, "`t", "    ")
-}
-
-; ---------------------------- 4. Date & Time ----------------------------
-
-AddTimestamp() {
-    A_Clipboard := A_Now . "`n" . A_Clipboard
-}
-
-ReplaceDateWithToday() {
-    A_Clipboard := RegExReplace(A_Clipboard, "\d{4}-\d{2}-\d{2}", A_Now)
-}
-
-
-; ---------------------------- 10. Advanced ----------------------------
-
-
+    ;@BM2
+    ; ---------------------------- 1. Text Manipulation ----------------------------
     
+    Transclude(*) { 
+        This := A_Clipboard
+        FileContent := ""        
+        FileRegex := "m)^C:\\.*\.(txt|ahk|bas|md|ahk|py|csv|log|ini|config)"
+        pos := 1
+        counter := 0
+        while (RegExMatch(This, FileRegex, &Match, pos)) {
+            FileName := Match[0]
+            if (FileExist(FileName)) {
+                FileContent := FileRead(FileName)
+                This := StrReplace(This, FileName, FileContent)
+            }
+            counter += 1
+            pos := Match.Pos + Match.Len
+        }
+        A_Clipboard := This
+
+    }
+
+    BreakLinesToSpaces() {
+        A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
+    }
+
+    ReverseWords() {
+        words := StrSplit(A_Clipboard, " ")
+        A_Clipboard := words.reverse().join(" ") 
+    }
+
+    ToUpperCase() {
+        A_Clipboard := StrUpper(A_Clipboard)
+    }
+
+    ToLowerCase() {
+        A_Clipboard := StrLower(A_Clipboard)
+    }
+
+    ToTitleCase() {
+        A_Clipboard := RegExReplace(A_Clipboard, "(\w)(\w*)", "$U1$2")
+    }
+
+    TrimClipboard() {
+        A_Clipboard := RTrim(LTrim(A_Clipboard))
+    }
+
+    SpaceToUnderscore() {
+        A_Clipboard := StrReplace(A_Clipboard, " ", "_")
+    }
+
+    RemoveDigits() {
+        A_Clipboard := RegExReplace(A_Clipboard, "\d", "")
+    }
+
+    RemoveSpecialChars() {
+        A_Clipboard := RegExReplace(A_Clipboard, "[^\w\s]", "")
+    }
+
+    RemoveHTMLTags() {
+        A_Clipboard := RegExReplace(A_Clipboard, "<.*?>", "")
+    }
+
+    ReplaceWord(wordToReplace, replacementWord) {
+        A_Clipboard := StrReplace(A_Clipboard, wordToReplace, replacementWord)
+    }
+
+    RemoveExtraSpaces() {
+        A_Clipboard := RegExReplace(A_Clipboard, "\s+", " ")
+    }
+
+    ; ---------------------------- 2. Formatting ----------------------------
+
+    NumberedList() {
+        A_Clipboard := RegExReplace(A_Clipboard, "(.*?)(\n|$)", "$N1$2")
+    }
+
+    BulletList() {
+        A_Clipboard := RegExReplace(A_Clipboard, "(.*?)(\n|$)", "• $1$2")
+    }
+
+    TsvToCsv() {
+        A_Clipboard := RegExReplace(A_Clipboard, "\t", ",")
+    }
+
+    ExcessLines() {
+        A_Clipboard := RegExReplace(A_Clipboard, "(\n\s*)+", "`n")
+    }
+
+    TabToSpace() {
+        A_Clipboard := StrReplace(A_Clipboard, "`t", "    ")
+    }
+
+    ; ---------------------------- 4. Date & Time ----------------------------
+
+    AddTimestamp() {
+        A_Clipboard := A_Now . "`n" . A_Clipboard
+    }
+
+    ReplaceDateWithToday() {
+        A_Clipboard := RegExReplace(A_Clipboard, "\d{4}-\d{2}-\d{2}", A_Now)
+    }
+
+
+    ; ---------------------------- 10. Advanced ----------------------------
+
+    ExtractByRegex(pattern){
+        items := []
+        pos := 1
+        while (RegExMatch(A_Clipboard, pattern, &Match, pos)) {
+            items.Push(match[0])
+            pos := Match.Pos + Match.Len
+        }
+        A_Clipboard := items.Length ? items.join("`n") : "No items found"
+    }
+    ExtractEmails() {
+        pattern := "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+        ExtractByRegex(pattern)
+    }
+    ExtractPhoneNumbers() {
+        pattern := "\+?\d{1,3}[\s-]?(\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}"
+        ExtractByRegex(pattern)
+    }
+    ExtractWebsites() {
+        pattern := "\b(?:https?://|www\.)[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\S*)\b"
+        ExtractByRegex(pattern)
+    }
+
 }
 
 ; ====== HELPER FUNCTIONS ======
@@ -1608,10 +1666,5 @@ ReplaceDateWithToday() {
         return
     }
 
-    ArrayToString(arr, delimiter := " ", reverse := false) {
-        if reverse
-            arr := arr.Clone(), arr.Reverse()
-        return arr.Join(delimiter)
-    }
 
 }
