@@ -1,0 +1,1 @@
+if (StrReplace(Trim(A_Clipboard), "`r`n", "`n") != StrReplace(Trim(editClipboard.Text), "`r`n", "`n")) {

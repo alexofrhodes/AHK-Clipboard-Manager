@@ -22,6 +22,14 @@ Version := "1.0.0"
 
     #Include lib\GuiState.ahk
     #Include lib\Translator.ahk
+
+    #Include  lib\UseGDIP.ahk
+    UseGDIP()
+    #Include lib\CreateImageButton.ahk
+    CreateImageButton("SetDefGuiColor", 0xFFF0F0F0)
+    #include lib\GuiButtonIcon_v2.ahk
+    ; if true use GuiButtonIcon_v2, else use CreateImageButton
+    global useImageButtons := IniRead("Settings.ini", "General", "useImageButtons", 0)      
 }
 ; ====== Global Variables ======
 {
@@ -34,7 +42,8 @@ Version := "1.0.0"
         DirCreate(historyDir)
 
     global LogFiles := []
-    global historyLimit := 100          ; after which the oldest file will be deleted
+    global historyLimit := IniRead("Settings.ini", "General", "historyLimit", 100)          ; after which the oldest file will be deleted
+    
     Loop Files, historyDir . "\*.*" 
         LogFiles.InsertAt(1, StrReplace(A_LoopFileName, ".txt", "")) 
 
@@ -201,7 +210,7 @@ Version := "1.0.0"
     ; ---- Main ----
     {
         myGui := Gui()
-
+        MyGui.SetFont("w500 q5", "Segoe UI")
         myGui.Title := "aClipboard"
         myGui.Opt("+AlwaysOnTop +Resize" )
 
@@ -213,12 +222,13 @@ Version := "1.0.0"
         OnMessage(0x404, AHK_NOTIFYICON)  
 
         CreateControls()
-        global guiManager := GuiState(myGui, "GuiState.ini", 1) ; must be after the control creation
+        global guiManager := GuiState(myGui, "Settings.ini", "GUI") ; must be after the control creation
         if showOnStart{
             showForm()
             editFilter.focus()
         }
     }
+    ;@BM1
     CreateControls(*){
         global
         ; Part 1
@@ -254,20 +264,61 @@ Version := "1.0.0"
             {
                 btnFind := myGui.Add("Button", "w150", "Find")
                 btnFind.Enabled := false
-        
+
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnFind.Hwnd, "lib\guibuttonicons\find.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnFind.text := ""
+                    }else{
+                        CreateImageButton(btnFind, 0, IBStyles["info-round"]*)
+                    }
+
                 editFind := myGui.Add("Edit", "w350 x+m veditFind", "") 
         
                 btnSave := myGui.Add("Button", "ys ", "Save")
                 btnSave.OnEvent("Click", SaveRegexValues)
-        
+                
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnSave.Hwnd, "lib\guibuttonicons\save.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnsave.text := ""
+                    }else{
+                        CreateImageButton(btnSave, 0, IBStyles["info-round"]*)
+                    }
+
+
                 btnReplace := myGui.Add("Button", "xm w150", "Replace")
                 btnReplace.OnEvent("Click", (*)=> ExecuteFunction("Replace"))
-        
+ 
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnReplace.Hwnd, "lib\guibuttonicons\Replace.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnReplace.text := ""
+                    }else{
+                        CreateImageButton(btnReplace, 0, IBStyles["success-round"]*)
+                    }                
+
                 editReplace := myGui.Add("Edit", "x+m section w350 veditReplace") 
         
                 btnLoad := myGui.Add("Button", "ys", "Load")
                 btnLoad.OnEvent("Click", LoadRegexValues)
         
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnLoad.Hwnd, "lib\guibuttonicons\open.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnLoad.text := ""
+                    }else{
+                        CreateImageButton(btnLoad, 0, IBStyles["info-round"]*)
+                    }    
+
                 chRegex := myGui.Add("Checkbox", "xs vchRegex", "Regex")
         
                 chCaseSensitive := myGui.Add("Checkbox", "x+m vchCaseSensitive" , "CaseSensitive")
@@ -281,9 +332,38 @@ Version := "1.0.0"
                 Separator1 := myGui.Add("Text", "xm h1 w570 0x10") ; Separator
             }
 
+            ; other settings
+            btnToggleButtonStyle := myGui.Add("Button", "w70 section", "Button Style")
+            btnToggleButtonStyle.OnEvent("Click", ToggleButtonStyle)
+            
+                if useImageButtons{
+                    if !GuiButtonIcon(btnToggleButtonStyle.Hwnd, "lib\guibuttonicons\buttonstyle.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnToggleButtonStyle.text := ""
+                }else{
+                    CreateImageButton(btnToggleButtonStyle, 0, IBStyles["warning-round"]*)
+                }
+
+            btnChangeHistoryLimit := myGui.Add("Button", "w70 x+m", "History Limit")
+            btnChangeHistoryLimit.OnEvent("Click", ChangeHistoryLimit)
+            
+                if useImageButtons{
+                    if !GuiButtonIcon(btnChangeHistoryLimit.Hwnd, "lib\guibuttonicons\history.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnChangeHistoryLimit.text := ""
+                }else{
+                    CreateImageButton(btnChangeHistoryLimit, 0, IBStyles["warning-round"]*)
+                }    
+
+            myGui.Add("Text", "xm h1 w150 0x10") ; Separator
+
             ; ---- Append/Prepend Options ----
             {
-                myGui.Add("Text", "xm section w60", "Separator:")
+                myGui.Add("Text", "xm w60", "Separator:")
                 MyArray := [  "Linebreak"
                             , "Space"
                             , "Tab"
@@ -311,24 +391,73 @@ Version := "1.0.0"
                 ddlSourceLanguage := myGui.Add("DropDownList", "x+m w100 vSourceLang Choose1 vddlSourceLanguage", languageList)
                 myGui.Add("Text", "xm w40", "Target")
                 ddlTargetLanguage := myGui.Add("DropDownList", "x+m w100 vTargetLang Choose2 vddlTargetLanguage", languageList)
-                myGui.Add("Button", "xm w70", "Swap").OnEvent("Click", SwapLanguages)
-                myGui.Add("Button","x+m w70", "Translate").OnEvent("Click", (*)=> ExecuteFunction("Translate"))
+
+                btnSwap := myGui.Add("Button", "xm w70", "Swap")
+                btnSwap.OnEvent("Click", SwapLanguages)
+
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnSwap.Hwnd, "lib\guibuttonicons\swap.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnSwap.text := ""
+                    }else{
+                        CreateImageButton(btnSwap, 0, IBStyles["info-round"]*)
+                    }    
+
+                btnTranslate := myGui.Add("Button","x+m w70", "Translate")
+                btnTranslate.OnEvent("Click", (*)=> ExecuteFunction("Translate"))
+
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnTranslate.Hwnd, "lib\guibuttonicons\Translate.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnTranslate.text := ""
+                    }else{
+                        CreateImageButton(btnTranslate, 0, IBStyles["success-round"]*)
+                    }        
+
                 myGui.Add("Text", "xm h1 w150 0x10") ; Separator
             }
     
         }
-        ; Part 2 - @MODIFY (1) - !!! ADD THE NAMES OF YOUR CLIPBOARD MODIFYING FUNCTIONS TO THIS ARRAY !!! . See @MODIFY(2)
+        ; Part 2 - @MODIFY (1) 
+        ; !!! MAP your predefined tabs or add to the array of remaining checkboxes 
+        ;     the names of your clipboard modifying functions 
+        ;     See @MODIFY(2)
         {
             ; ---- Actions ---- 
             { 
 
             btnGetChecked := myGui.Add("Button", "xm w150", "Apply")
             btnGetChecked.OnEvent("Click", applyActionCheckboxes)
+
+                if useImageButtons{
+                    if !GuiButtonIcon(btnGetChecked.Hwnd, "lib\guibuttonicons\Apply.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnGetChecked.text := ""
+                }else{
+                    CreateImageButton(btnGetChecked, 0, IBStyles["success-round"]*)
+                }    
+
             chAutoApply := myGui.Add("Checkbox", "xm vchAutoApply", "Auto")
             chCurrentTabOnly := myGui.Add("Checkbox", "x+m vchCurrentTabOnly", "Only Current Tab")
             
             btnToggle := myGui.AddButton("xs w150 ", "Toggle")
             btnToggle.OnEvent("Click", ToggleActions)
+
+                if useImageButtons{
+                    if !GuiButtonIcon(btnToggle.Hwnd, "lib\guibuttonicons\Toggle.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnToggle.text := ""
+                }else{
+                    CreateImageButton(btnToggle, 0, IBStyles["info-round"]*)
+                }                
             }   
             
             ; Predefined tabs with specific checkboxes stored in a map
@@ -346,87 +475,152 @@ Version := "1.0.0"
                 "FormatDate", "NormalizeFilePath", "RemoveWhitespace", "CountWords",
                 "ReverseLines", "SortLines", "CapitalizeSentences"
             ]
-    
-            ItemsPerTab := 15  ; Max number of checkboxes per tab
-    
-            ; Create an array for tab names
-            tabNames := []
-            For Key , Value in predefinedTabs
-                tabNames.Push(Key)
-    
-            ; Calculate extra tabs needed for remaining checkboxes
-            extraItems := remainingCheckboxes.Length
-            extraTabs := Ceil(extraItems / ItemsPerTab)
-            Index := tabNames.Length
-            ; Generate additional tab names
-            Loop extraTabs
-                tabNames.Push("Tab" A_Index + Index)  ; Naming dynamic tabs (Tab4, Tab5, etc.)
-    
-            ; Create the Tab control
-            tabControl := myGui.Add("Tab3", "vTabControl xs w155 0x80 0x100 R" ItemsPerTab, tabNames)
-    
-            ; Store checkbox objects for later use
-            actionCheckboxes := []
-    
-            ; Add checkboxes to predefined tabs
-            For tabName in predefinedTabs {
-                tabControl.UseTab(tabName)  ; Switch to predefined tab
-                For checkboxLabel in predefinedTabs[tabName] {
-                    actionCheckboxes.Push(myGui.AddCheckbox("vch" checkboxLabel, checkboxLabel)) 
+            {
+                ItemsPerTab := 15  ; Max number of checkboxes per tab
+        
+                ; Create an array for tab names
+                tabNames := []
+                For Key , Value in predefinedTabs
+                    tabNames.Push(Key)
+        
+                ; Calculate extra tabs needed for remaining checkboxes
+                extraItems := remainingCheckboxes.Length
+                extraTabs := Ceil(extraItems / ItemsPerTab)
+                Index := tabNames.Length
+                ; Generate additional tab names
+                Loop extraTabs
+                    tabNames.Push("Tab" A_Index + Index)  ; Naming dynamic tabs (Tab4, Tab5, etc.)
+        
+                ; Create the Tab control
+                tabControl := myGui.Add("Tab3", "vTabControl xs w155 0x80 0x100 R" ItemsPerTab, tabNames)
+        
+                ; Store checkbox objects for later use
+                actionCheckboxes := []
+        
+                ; Add checkboxes to predefined tabs
+                For tabName in predefinedTabs {
+                    tabControl.UseTab(tabName)  ; Switch to predefined tab
+                    For checkboxLabel in predefinedTabs[tabName] {
+                        actionCheckboxes.Push(myGui.AddCheckbox("vch" checkboxLabel, checkboxLabel)) 
+                    }
                 }
+        
+                ; Assign remaining checkboxes to dynamic tabs
+                tabIndex := predefinedTabs.Count + 1  ; Start from the first dynamic tab
+                itemCount := 0
+        
+                For checkboxLabel in remainingCheckboxes {
+                    if (itemCount = 0)  ; Move to the next tab when a new tab starts
+                        tabControl.UseTab(tabIndex++)
+        
+                    actionCheckboxes.Push(myGui.AddCheckbox("vch" checkboxLabel, checkboxLabel)) 
+                    
+                    itemCount++
+                    if (itemCount >= ItemsPerTab)  ; Reset item count for new tab
+                        itemCount := 0
+                }
+        
+                tabControl.UseTab()  ; Reset tab selection
             }
-    
-            ; Assign remaining checkboxes to dynamic tabs
-            tabIndex := predefinedTabs.Count + 1  ; Start from the first dynamic tab
-            itemCount := 0
-    
-            For checkboxLabel in remainingCheckboxes {
-                if (itemCount = 0)  ; Move to the next tab when a new tab starts
-                    tabControl.UseTab(tabIndex++)
-    
-                actionCheckboxes.Push(myGui.AddCheckbox("vch" checkboxLabel, checkboxLabel)) 
-                
-                itemCount++
-                if (itemCount >= ItemsPerTab)  ; Reset item count for new tab
-                    itemCount := 0
-            }
-    
-            tabControl.UseTab()  ; Reset tab selection
-    
         }
         ; Part 3 _LogFiles and Clipboard Preview
         {
             ; ---- Log Files ----
             {
-            myGui.Add("Button", "ys section w70", "Del Sel").OnEvent("Click", DeleteSelectedLogFile)
-            myGui.Add("Button", "x+m w70", "Del All").OnEvent("Click", DeleteAllLogFiles)
-            
+            btnDeleteSelected:= myGui.Add("Button", "ys section w70", "Del Sel")
+            btnDeleteSelected.OnEvent("Click", DeleteSelectedLogFile)
+
+                if useImageButtons{
+                    if !GuiButtonIcon(btnDeleteSelected.Hwnd, "lib\guibuttonicons\deletefile.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnDeleteSelected.text := ""
+                }else{
+                    CreateImageButton(btnDeleteSelected, 0, IBStyles["critical-round"]*)
+                }    
+
+            btnDeleteAll := myGui.Add("Button", "x+m w70", "Del All")
+            btnDeleteAll.OnEvent("Click", DeleteAllLogFiles)
+
+                if useImageButtons{
+                    if !GuiButtonIcon(btnDeleteAll.Hwnd, "lib\guibuttonicons\deleteall.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnDeleteAll.text := ""
+                }else{
+                    CreateImageButton(btnDeleteAll, 0, IBStyles["critical-round"]*)
+                }    
+        
             btnDuplicate := myGui.Add("Button", "xs w70", "Duplicate")
             btnDuplicate.OnEvent("Click", (*)=> ExecuteFunction("DuplicateLogFile"))
             
+                if useImageButtons{
+                    if !GuiButtonIcon(btnDuplicate.Hwnd, "lib\guibuttonicons\duplicate.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnDuplicate.text := ""
+                }else{
+                    CreateImageButton(btnDuplicate, 0, IBStyles["info-round"]*)
+                }    
+
             btnRename := myGui.Add("Button", "x+m w70", "Rename")
             btnRename.OnEvent("Click", RenameLogFile)
     
+                if useImageButtons{
+                    if !GuiButtonIcon(btnRename.Hwnd, "lib\guibuttonicons\rename.png",,) {
+                        MsgBox "Failed to set icon for button."
+                        ExitApp
+                    }
+                    btnRename.text := ""
+                }else{
+                    CreateImageButton(btnRename, 0, IBStyles["success-round"]*)
+                }    
+
             myGui.Add("Text", "xs  w30", "Filter")
             editFilter := myGui.Add("Edit", "x+m w110", "")
             editFilter.OnEvent("Change", FilterLogFiles)
     
-            lbLogFiles := myGui.Add("ListBox", "xs h430 w150 HScroll", LogFiles) 
+            lbLogFiles := myGui.Add("ListBox", "xs h500 w150 HScroll", LogFiles) 
             lbLogFiles.OnEvent("Change", LoadSelectedLogFile)
             }
             ; ---- Clipboard Edit ----
             {
                 myGui.Add("Text", "ys+5 section", "Clipboard Content")
                 btnSaveEditClipboard := myGui.Add("Button", "ys-5 w120", "Save Changes")
-                btnSaveEditClipboard.OnEvent("Click", SaveEditClipboardChanges)        
-                editClipboard := myGui.Add("Edit", "xs w240 h470 +HScroll -wrap") ;no vName, no need to save in the ini file
+                btnSaveEditClipboard.OnEvent("Click", SaveEditClipboardChanges)     
+                
+                    if useImageButtons{
+                        if !GuiButtonIcon(btnSaveEditClipboard.Hwnd, "lib\guibuttonicons\save.png",,) {
+                            MsgBox "Failed to set icon for button."
+                            ExitApp
+                        }
+                        btnSaveEditClipboard.text := ""
+                    }else{
+                        CreateImageButton(btnSaveEditClipboard, 0, IBStyles["success-round"]*)
+                    }                   
+
+                editClipboard := myGui.Add("Edit", "xs w240 h520 +HScroll -wrap 0x100") ;no vName, no need to save in the ini file
     
                 if logfiles.Length > 0{
                     lbLogFiles.Choose(1)  
                     LoadSelectedLogFile()
                 }
-                ; if (A_Clipboard != editClipboard.Text)
-                ;     SaveClipboardToLogFile()
+
+                if (StrReplace(Trim(A_Clipboard), "`r`n", "`n") != StrReplace(Trim(editClipboard.Text), "`r`n", "`n")) {
+                    if (currentIndex < LogFiles.Length) {  
+                        lastSavedText := FileRead(historyDir "\" logFiles[currentIndex + 1] ".txt")
+                        if (StrReplace(Trim(A_Clipboard), "`r`n", "`n") != StrReplace(Trim(lastSavedText), "`r`n", "`n")) {
+                            editClipboard.Text := A_Clipboard  
+                            SaveClipboardToLogFile()  
+                        }
+                    } else {  
+                        editClipboard.Text := A_Clipboard  
+                        SaveClipboardToLogFile()
+                    }
+                }
             }
         }
         
@@ -434,20 +628,20 @@ Version := "1.0.0"
 
     ; ---- Hotkeys ----
     {
-        #c::        toggleGUI()     ; Win  + C
-        $^c::       Copy()          ; Ctrl + C
-        $^x::       Cut()           ; Ctrl + X
-        $^!c::      Append()        ; Ctrl + Alt   + C 
-        $^!x::      CutAppend()     ; Ctrl + Alt   + X 
-        $^+c::      Prepend()       ; Ctrl + Shift + P 
-        $^+x::      CutPrepend()    ; Ctrl + Shift + X 
-        $!i::       Inject()        ; Alt  + I 
-        $#z::       Undo()          ; Win  + Z 
-        $#y::       Redo()          ; Win  + Y 
-        $#v::       Paste()         ; Win  + V
-        $#F::       myFormat()        ; Win  + F
-        $^s::       SaveChanges()   ; Ctrl + S
-
+        #c::        toggleGUI()                     ; Win  + C
+        $^c::       Copy()                          ; Ctrl + C
+        $^x::       Cut()                           ; Ctrl + X
+        $^!c::      Append()                        ; Ctrl + Alt   + C 
+        $^!x::      CutAppend()                     ; Ctrl + Alt   + X 
+        $^+c::      Prepend()                       ; Ctrl + Shift + P 
+        $^+x::      CutPrepend()                    ; Ctrl + Shift + X 
+        $!i::       Inject()                        ; Alt  + I 
+        $#z::       Undo()                          ; Win  + Z 
+        $#y::       Redo()                          ; Win  + Y 
+        $#v::       Paste()                         ; Win  + V
+        $#F::       myFormat()                      ; Win  + F
+        $^s::       SaveChanges()                   ; Ctrl + S
+        $#T::       ExecuteFunction("Translate")    ; Win  + T
 
         $Tab::CycleFocus()
         $+Tab::CycleFocus()
@@ -596,6 +790,7 @@ Version := "1.0.0"
                     <tr><td>Ctrl + X</td><td>Cut</td></tr>
                     <tr><td>Win + V</td><td>Paste by chosen PasteMethod</td></tr>
                     <tr><td>Win + F</td><td>Format Selected Text</td></tr>
+                    <tr><td>Win + T</td><td>Translate Selected Text</td></tr>
                     <tr><td>Ctrl + Alt + C</td><td>Append</td></tr>
                     <tr><td>Ctrl + Alt + X</td><td>Cut Append</td></tr>
                     <tr><td>Ctrl + Shift + P</td><td>Prepend</td></tr>
@@ -614,7 +809,7 @@ Version := "1.0.0"
         
             ; Create GUI
             helpGui := Gui(, "Hotkey Guide")
-            browser := helpGui.AddActiveX("x10 y10 w500 h500", "Shell.Explorer")
+            browser := helpGui.AddActiveX("x10 y10 w500 h600", "Shell.Explorer")
         
             ; Wait until the ActiveX control is fully ready
             ComObject := browser.Value
@@ -880,8 +1075,7 @@ Version := "1.0.0"
                 }
             }
         }
-        
-        
+       
         applyActionCheckboxes(*) {
             global 
         
@@ -894,22 +1088,38 @@ Version := "1.0.0"
                 }
             }
         
-            editClipboard.Value := A_Clipboard
+            ; editClipboard.Value := A_Clipboard
         }
-        
-        ExecuteFunction(FunctionName) {
+
+        ExecuteFunction(FunctionOrName) {
             previousClipboard := A_Clipboard
-            if IsFunc(FunctionName) {
-                %FunctionName%.Call() ; Call function dynamically
+            funcObj := ""
+        
+            ; Determine if the input is a function object or a function name
+            if IsObject(FunctionOrName) && FunctionOrName is Func {
+                funcObj := FunctionOrName  ; Function reference
+            } else if IsFunc(FunctionOrName) {
+                funcObj := %FunctionOrName%  ; Retrieve function by name
+            }
+        
+            if funcObj {
+                if funcObj.MinParams = 0 {
+                    funcObj.Call()  ; Call function without arguments
+                } else {
+                    funcObj.Call(A_Clipboard)  ; Call function with A_Clipboard as argument
+                }
             } else {
-                Switch FunctionName, false
+                Switch FunctionOrName, false
                 {
-                    Case "test"      : MsgBox("test")
-                    Default: MsgBox("Function '" FunctionName "' not found!")
+                    Case "test": MsgBox("test")
+                    Default: MsgBox("Function '" FunctionOrName "' not found!")
                 }
             }
-            try editClipboard.Value := A_Clipboard
+        
+            ; editClipboard.Value := A_Clipboard
+            SaveClipboardToLogFile()
         }
+        
         Replace(*) {
             ; Validate input: Ensure the "Find" field is not empty
             if (editFind.text = "") {
@@ -989,7 +1199,7 @@ Version := "1.0.0"
             Send("{ctrl Down}c{ctrl up}")
             
             if !ClipWait(3) || (ClipboardDatatype = !Datatype_Text) { 
-                A_Clipboard := previousClipboard
+                ; A_Clipboard := previousClipboard
                 ; MsgBox "The attempt to copy text onto the clipboard failed."
             } else {
                 SaveClipboardToLogFile()
@@ -1005,6 +1215,8 @@ Version := "1.0.0"
             tmp := chAutoApply.Value 
             chAutoApply.Value := false ;otherwise Copy() may apply format
             Copy()
+            if (ClipboardDatatype != Datatype_Text)
+                return
             applyActionCheckboxes()
             SaveClipboardToLogFile()
             Paste()
@@ -1020,7 +1232,7 @@ Version := "1.0.0"
             A_Clipboard := ""
             Send("{ctrl Down}x{ctrl up}")
             if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                A_Clipboard := previousClipboard
+                ; A_Clipboard := previousClipboard
                 ; MsgBox "The attempt to copy text onto the clipboard failed."
             } else {
                 SaveClipboardToLogFile()
@@ -1040,7 +1252,7 @@ Version := "1.0.0"
             A_Clipboard := ""
             Send("{ctrl Down}c{ctrl up}")
             if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                A_Clipboard := previousClipboard
+                ; A_Clipboard := previousClipboard
                 ; MsgBox "The attempt to copy text onto the clipboard failed."
             } else {
                 A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
@@ -1062,7 +1274,7 @@ Version := "1.0.0"
             A_Clipboard := ""
             Send("{ctrl Down}x{ctrl up}")
             if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                A_Clipboard := previousClipboard
+                ; A_Clipboard := previousClipboard
                 ; MsgBox "The attempt to copy text onto the clipboard failed."
             } else {
                 A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
@@ -1084,7 +1296,7 @@ Version := "1.0.0"
             A_Clipboard := ""
             Send("{ctrl Down}c{ctrl up}")
             if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                A_Clipboard := previousClipboard
+                ; A_Clipboard := previousClipboard
                 ; MsgBox "The attempt to copy text onto the clipboard failed."
             } else {
                 A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
@@ -1106,7 +1318,7 @@ Version := "1.0.0"
             A_Clipboard := ""
             Send("{ctrl Down}x{ctrl up}")
             if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                A_Clipboard := previousClipboard
+                ; A_Clipboard := previousClipboard
                 ; MsgBox "The attempt to copy text onto the clipboard failed."
             } else {
                 A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
@@ -1180,7 +1392,6 @@ Version := "1.0.0"
             pasteMethod := ddlPasteMethod.Text
         
             ; Use the selected method for pasting
-            ;@TODO consider Send("{Shift Down}{Insert}{Shift Up}")
             if (pasteMethod = "Ctrl+V") {
                 Send("{ctrl Down}v{ctrl up}")
             } else if (pasteMethod = "SendText") {
@@ -1227,67 +1438,84 @@ Version := "1.0.0"
                 MsgBox("No more history in this direction.",,0x1000)
             }
         }
-        
-        
+        selectedSeparator(*) {
+            separator := ddlSeparator.text
+            switch separator {
+                case "Linebreak": separator := "`r`n"
+                case "Space": separator := " "
+                case "Tab": separator := "`t"
+                default: separator := ""
+            }
+            return separator
+        }        
         Translate(*){
             target := Languages[ddlTargetLanguage.text]
             source := Languages[ddlSourceLanguage.text]
-            translation := Translator.Translate(A_Clipboard, 
-                                                target, 
-                                                source)
+            translation := Translator.Translate(A_Clipboard, target, source)
             A_Clipboard := translation
-    
         }
-
-    }
-    selectedSeparator(*) {
-        separator := ddlSeparator.text
-        switch separator {
-            case "Linebreak": separator := "`r`n"
-            case "Space": separator := " "
-            case "Tab": separator := "`t"
-            default: separator := ""
+        ToggleButtonStyle(*) {
+            global 
+            useImageButtons := !useImageButtons       
+            IniWrite(useImageButtons, "Settings.ini", "General", "useImageButtons")
+            guiManager.SaveState()
+            if (A_IsCompiled) {
+                Run(A_ScriptFullPath)  
+                ExitApp()  
+            } else {
+                Reload()  
+            }
         }
-        return separator
+        ChangeHistoryLimit(*) {
+            global 
+            newLimit := InputBox("Enter a new history limit (minimum: 1):", "Set History Limit")
+            if (newLimit = "") || (newLimit = false)
+                return
+            if !(IsInteger(newLimit)) || (newLimit < 1) {
+                return
+            }
+            historyLimit := newLimit
+            IniWrite(historyLimit, "Settings.ini", "General", "historyLimit")
+        }
+        
+        
     }
-   
 }
 
 ; ==== @MODIFY(2) - USER clipboard mod functions ====
     ; Bellow this point add your own functions, they just need to modify the clipboard as a final result
     ; Remember to add the function name to the actionCheckboxes array at @MODIFY(1)
 {
-  
-    Transclude(*) { 
-        This := A_Clipboard
-        FileContent := ""        
-        FileRegex := "m)^C:\\.*\.(txt|ahk|bas|md|ahk|py|csv|log|ini|config)"
-        pos := 1
-        counter := 0
-        while (RegExMatch(This, FileRegex, &Match, pos)) {
-            FileName := Match[0]
-            if (FileExist(FileName)) {
-                FileContent := FileRead(FileName)
-                This := StrReplace(This, FileName, FileContent)
-            }
-            counter += 1
-            pos := Match.Pos + Match.Len
-        }
-        A_Clipboard := This
-
-    }
-    
-    ; BreakLinesToSpaces() {
-    ;     A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
-    ; }
-
-    ReverseWords() {
-        words := StrSplit(A_Clipboard, " ")
-        A_Clipboard := ArrayToString(words, " ", true) ; Reverse order
-    }
-
-
+;@BM2
 ; ---------------------------- 1. Text Manipulation ----------------------------
+  
+Transclude(*) { 
+    This := A_Clipboard
+    FileContent := ""        
+    FileRegex := "m)^C:\\.*\.(txt|ahk|bas|md|ahk|py|csv|log|ini|config)"
+    pos := 1
+    counter := 0
+    while (RegExMatch(This, FileRegex, &Match, pos)) {
+        FileName := Match[0]
+        if (FileExist(FileName)) {
+            FileContent := FileRead(FileName)
+            This := StrReplace(This, FileName, FileContent)
+        }
+        counter += 1
+        pos := Match.Pos + Match.Len
+    }
+    A_Clipboard := This
+
+}
+
+BreakLinesToSpaces() {
+    A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
+}
+
+ReverseWords() {
+    words := StrSplit(A_Clipboard, " ")
+    A_Clipboard := ArrayToString(words, " ", true) ; Reverse order
+}
 
 ToUpperCase() {
     A_Clipboard := StrUpper(A_Clipboard)

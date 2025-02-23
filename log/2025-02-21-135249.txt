@@ -1,2 +1,0 @@
-            btnToggle := myGui.AddButton("xs ", "Toggle")
-            btnToggle.OnEvent("Click", ToggleActions)
