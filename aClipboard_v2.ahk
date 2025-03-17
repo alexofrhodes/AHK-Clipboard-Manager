@@ -29,7 +29,6 @@ Version := "1.0.0"
     UseGDIP()
     #Include lib\CreateImageButton.ahk
     CreateImageButton("SetDefGuiColor", 0xFFF0F0F0)
-    #include lib\GuiButtonIcon_v2.ahk
     ; if true use GuiButtonIcon_v2, else use CreateImageButton
 }
 ; ====== Global Variables ======
@@ -268,7 +267,7 @@ Version := "1.0.0"
                 CreateImageButton(btnFind, 0, IBStyles["info-round"]*)
 
                 btnExtractByRegex := myGui.Add("Button", "x+m w100", "ExtractByRegex")
-                btnExtractByRegex.OnEvent("Click", (*) => ExecuteFunction((*)=>ExtractByRegex(editFind.text)))
+                btnExtractByRegex.OnEvent("Click", (*) => ExecuteFunction(ExtractByRegex, editFind.text))
                 CreateImageButton(btnExtractByRegex, 0, IBStyles["success-round"]*)
 
                 editFind := myGui.Add("Edit", "w350 x+m veditFind", "") 
@@ -278,7 +277,7 @@ Version := "1.0.0"
                 CreateImageButton(btnSave, 0, IBStyles["info-round"]*)
 
                 btnReplace := myGui.Add("Button", "xm w150 ", "Replace")
-                btnReplace.OnEvent("Click", (*)=> ExecuteFunction("Replace"))
+                btnReplace.OnEvent("Click", (*) => ExecuteFunction(Replace, A_Clipboard))
                 CreateImageButton(btnReplace, 0, IBStyles["success-round"]*)
 
                 editReplace := myGui.Add("Edit", "x+m w350 section veditReplace") 
@@ -345,7 +344,7 @@ Version := "1.0.0"
                 CreateImageButton(btnSwap, 0, IBStyles["info-round"]*)  
 
                 btnTranslate := myGui.Add("Button","x+m w70", "Translate")
-                btnTranslate.OnEvent("Click", (*)=> ExecuteFunction("Translate"))
+                btnTranslate.OnEvent("Click", (*) => ExecuteFunction("Translate", A_Clipboard))
                 CreateImageButton(btnTranslate, 0, IBStyles["success-round"]*)
 
                 myGui.Add("Text", "xm h1 w150 0x10") ; Separator
@@ -373,9 +372,8 @@ Version := "1.0.0"
             ;     the names of your clipboard modifying functions 
             ;     See also @MODIFY(2)
 
-            ; Predefined tabs with specific checkboxes stored in a map. Respect the ItemsPerTab limit.
+            ; Predefined tabs with specific checkboxes stored in a map.
             ; predefinedTabs := Map(tabname1, arrayoffunctionnames, tabname2, arrayoffunctionnames)
-            ; map seems to sort keys AZ, so use numbers to keep order, i'll have to check again @TODO
 
             predefinedTabs := Map(
                 "1. Main", ["Replace", "Transclude", "Translate"],
@@ -462,7 +460,7 @@ Version := "1.0.0"
             CreateImageButton(btnDeleteAll, 0, IBStyles["critical-round"]*)   
         
             btnDuplicate := myGui.Add("Button", "xs w70", "Duplicate")
-            btnDuplicate.OnEvent("Click", (*)=> ExecuteFunction("DuplicateLogFile"))
+            btnDuplicate.OnEvent("Click", (*)=> ExecuteFunction("DuplicateLogFile",A_Clipboard))
             CreateImageButton(btnDuplicate, 0, IBStyles["info-round"]*)
 
             btnRename := myGui.Add("Button", "x+m w70", "Rename")
@@ -523,7 +521,7 @@ Version := "1.0.0"
             $#v::       Paste()                         ; Win  + V
             $#F::       myFormat()                      ; Win  + F
             $^s::       SaveChanges()                   ; Ctrl + S
-            $#T::       ExecuteFunction("Translate")    ; Win  + T
+            $#T::       ExecuteFunction("Translate", A_Clipboard)    ; Win  + T
 
             $del::     {
                 if !WinActive(mygui.hwnd){
@@ -632,46 +630,29 @@ Version := "1.0.0"
         }
         ; ---- Gui Functions ----
         {
-            DuplicateLogFile(*){
-                global
-                if (currentIndex = 0) {
-                    MsgBox "Please select a file to duplicate."
-                    return
-                }
-            
-                oldFileName := logFiles[currentIndex]
-                oldFilePath := historyDir "\" oldFileName ".txt"
-            
-                ; Extract timestamp part (assuming it's always at the start)
-                RegExMatch(oldFileName, "^\d{4}-\d{2}-\d{2}-\d{6}", &match)
-                timestamp := match[0]
-            
-                if (!timestamp) {
-                    MsgBox "Invalid file format. Cannot duplicate."
-                    return
-                }
-            
-                newName := timestamp " Copy"
-                newFilePath := historyDir . "\" . newName . ".txt"
-            
-                ; Ensure the new name does not exist
-                counter := 1
-                while FileExist(newFilePath) {
-                    counter++
-                    newName := newName " (" . counter . ")"
-                    newFilePath := historyDir "\" . newName . ".txt"
-                } 
-                FileCopy(oldFilePath, newFilePath)
-                LogFiles.InsertAt(currentIndex, newName)
-                lbLogFiles.Delete
-                lbLogFiles.add(logFiles)
-                lbLogFiles.choose(currentIndex)
-            }
             SwapLanguages(*) {
                 global 
                 temp := ddlSourceLanguage.Text
                 ddlSourceLanguage.Text := ddlTargetLanguage.Text
                 ddlTargetLanguage.Text := temp
+            }
+            showForm(*) {
+                
+                myGui.Show("x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
+                guiManager.LoadState()
+
+            }
+            toggleGUI(*){
+                guiManager.SaveState()
+                if IsSet(myGui) && myGui {
+                    if WinActive(myGui.Hwnd) {
+                        myGui.Hide()
+                    } else {
+                        showForm()
+                    }
+                } else {
+                    
+                }
             }
             Help(*) {
                 HelpHTML := "
@@ -726,24 +707,43 @@ Version := "1.0.0"
                 helpGui.Opt("+AlwaysOnTop")
                 helpGui.Show("AutoSize ")
             }
-            showForm(*) {
-                
-                myGui.Show("x5000 y5000") ;show offscreen to avoid flicker from guiLoadState
-                guiManager.LoadState()
-
-            }
-            toggleGUI(*){
-                guiManager.SaveState()
-                if IsSet(myGui) && myGui {
-                    if WinActive(myGui.Hwnd) {
-                        myGui.Hide()
-                    } else {
-                        showForm()
-                    }
-                } else {
-                    
+            DuplicateLogFile(*){
+                global
+                if (currentIndex = 0) {
+                    MsgBox "Please select a file to duplicate."
+                    return
                 }
+            
+                oldFileName := logFiles[currentIndex]
+                oldFilePath := historyDir "\" oldFileName ".txt"
+            
+                ; Extract timestamp part (assuming it's always at the start)
+                RegExMatch(oldFileName, "^\d{4}-\d{2}-\d{2}-\d{6}", &match)
+                timestamp := match[0]
+            
+                if (!timestamp) {
+                    MsgBox "Invalid file format. Cannot duplicate."
+                    return
+                }
+            
+                newName := timestamp " Copy"
+                newFilePath := historyDir . "\" . newName . ".txt"
+            
+                ; Ensure the new name does not exist
+                counter := 1
+                while FileExist(newFilePath) {
+                    counter++
+                    newName := newName " (" . counter . ")"
+                    newFilePath := historyDir "\" . newName . ".txt"
+                } 
+                FileCopy(oldFilePath, newFilePath)
+                LogFiles.InsertAt(currentIndex, newName)
+                lbLogFiles.Delete
+                lbLogFiles.add(logFiles)
+                lbLogFiles.choose(currentIndex)
             }
+
+
             RenameLogFile(*) {
                 global 
             
@@ -980,75 +980,6 @@ Version := "1.0.0"
                     }
                 }
             }
-        
-            applyActionCheckboxes(*) {
-                global 
-                guiManager.SaveState()
-                currentTabOnly := chCurrentTabOnly.Value  ; Get checkbox state
-            
-                for ctrl in actionCheckboxes {
-                    vis := ControlGetVisible(ctrl.Hwnd)
-                    if (ctrl.Value && (!currentTabOnly || vis)) {  
-                        FunctionName := ctrl.Text
-                        ExecuteFunction(FunctionName)
-                    }
-                }
-            
-                ; editClipboard.Value := A_Clipboard
-            }
-
-            ExecuteFunction(FunctionOrName) {
-                previousClipboard := A_Clipboard
-                funcObj := ""
-            
-                ; Determine if the input is a function object or a function name
-                if IsObject(FunctionOrName) && FunctionOrName is Func {
-                    funcObj := FunctionOrName  ; Function reference
-                } else if IsFunc(FunctionOrName) {
-                    funcObj := %FunctionOrName%  ; Retrieve function by name
-                }
-            
-                if funcObj {
-                    if funcObj.MinParams = 0 {
-                        funcObj.Call()  ; Call function without arguments
-                    } else {
-                        funcObj.Call(A_Clipboard)  ; Call function with A_Clipboard as argument
-                    }
-                } else {
-                    Switch FunctionOrName, false
-                    {
-                        Case "test": MsgBox("test")
-                        Default: MsgBox("Function '" FunctionOrName "' not found!")
-                    }
-                }
-            
-                ; editClipboard.Value := A_Clipboard
-                SaveClipboardToLogFile()
-            }
-            
-            Replace(*) {
-                ; Validate input: Ensure the "Find" field is not empty
-                if (editFind.text = "") {
-                    MsgBox("Error: 'Find' field cannot be empty!", "Input Error", 0x30 0x1000)
-                    return
-                }
-                ; Assign defaults if fields are empty
-                if (editStartingPos.text = "")
-                    editStartingPos.text := "1"
-                if (editLimit.text = "")
-                    editLimit.text := "-1"
-                limit := editLimit.Value + 0
-                startingPos := editStartingPos.Value + 0
-                ; If Regex mode is enabled, use RegExReplace
-                if chRegex.value {
-                    A_Clipboard := RegExReplace(A_Clipboard, editFind.text, editReplace.text, , limit, startingPos)
-                } else {
-                    A_Clipboard := StrReplace(A_Clipboard, editFind.text, editReplace.text, chCaseSensitive.Value, , limit)
-                }
-                if (previousClipboard = A_Clipboard) {
-                    MsgBox("No matches found for '" editFind.text "'!", "No Change", 0x40)
-                }
-            }
             SaveRegexValues(*) {
                 myGui.Opt("-AlwaysOnTop")
                 fileName := InputBox("Enter file name", "Enter the desired file name or leave it blank to select a file:", "").value
@@ -1097,39 +1028,224 @@ Version := "1.0.0"
                 editFind.Value := IniRead(filePath, "Regex", "Find", "")
                 editReplace.Value := IniRead(filePath, "Regex", "Replace", "")
             
+            }       
+            applyActionCheckboxes(*) {
+                global 
+                guiManager.SaveState()
+                currentTabOnly := chCurrentTabOnly.Value  ; Get checkbox state
+                textToModify := A_Clipboard  ; Store initial clipboard content
+            
+                for ctrl in actionCheckboxes {
+                    vis := ControlGetVisible(ctrl.Hwnd)
+                    if (ctrl.Value && (!currentTabOnly || vis)) {  
+                        FunctionName := ctrl.Text
+                        textToModify := ExecuteFunction(FunctionName, textToModify)
+                    }
+                }
+                
+                ; Finally, update clipboard once at the end if necessary
+                A_Clipboard := textToModify
+                ; Optionally, save or log the final clipboard if needed
+                SaveClipboardToLogFile()
+            }
+            ExecuteFunction(FunctionOrName, textToModify) {
+                previousClipboard := textToModify  ; Store original clipboard content
+                funcObj := ""
+            
+                ; Determine if the input is a function object or a function name
+                if IsObject(FunctionOrName) && FunctionOrName is Func {
+                    funcObj := FunctionOrName  ; Function reference
+                } else if IsFunc(FunctionOrName) {
+                    funcObj := %FunctionOrName%  ; Retrieve function by name
+                }
+            
+                if funcObj {
+                    if funcObj.MinParams = 0 {
+                        funcObj.Call()  ; Call function without arguments
+                    } else {
+                        textToModify := funcObj.Call(textToModify)  ; Call function with textToModify as argument
+                    }
+                } else {
+                    Switch FunctionOrName, false
+                    {
+                        Case "test": MsgBox("test")
+                        Default: MsgBox("Function '" FunctionOrName "' not found!")
+                    }
+                }
+                
+                ; Return the modified clipboard after function execution
+                return textToModify
+            }
+                        
+            SaveClipboardToLogFile(*) {
+                global
+                
+                fileName := FormatTime(A_Now, "yyyy-MM-dd-HHmmss")
+                FileAppend(A_Clipboard, historyDir "\" . fileName . ".txt")
+            
+                ; Add to history array
+                LogFiles.InsertAt(1, fileName)
+            
+                ; If history exceeds the limit, delete the oldest file
+                if (LogFiles.Length > historyLimit) {
+                    oldFile := LogFiles.RemoveAt(LogFiles.Length)  ; Remove from the array (we're storing them in reverse order)
+                    FileDelete(oldFile)                      
+                }
+            
+                currentIndex := 1
+                UpdateStatusBar()
+            
+                ; Add new file to the top of ListBox
+                lbLogFiles.delete()
+                lbLogFiles.add(LogFiles)
+                lbLogFiles.Choose(1)  
+                LoadSelectedLogFile()
             }
             
-            Input(*){
-                myGui.opt("-AlwaysOnTop")
-                userInput := InputBox("Enter text to copy:", "Clipboard Input")
-                myGui.opt("+AlwaysOnTop")
-
-                if userInput.Result = "OK" && userInput.Value != "" {
-                    A_Clipboard := userInput.Value
-                    SaveClipboardToLogFile()
-                    ; MsgBox "Text copied to clipboard: `n" userInput.Value
+            CutPrepend(*) {
+                global
+                flag := WinActive(myGui.hwnd)
+                if flag
+                    toggleGUI()
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                A_Clipboard := ""
+                Send("{ctrl Down}x{ctrl up}")
+                
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                    ; Restore clipboard if cut and prepend operation fails
+                    A_Clipboard := previousClipboard
+                    MsgBox "The attempt to cut and prepend text onto the clipboard failed."
                 } else {
-                    ; MsgBox "No text entered. Clipboard unchanged."
-                }
+                    A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
+                    SaveClipboardToLogFile()  ; Save the final clipboard state
+                    if chAutoApply.Value 
+                        applyActionCheckboxes()
+                }    
+                
+                if flag
+                    toggleGUI()
             }
+            
+            Prepend(*) {
+                global
+                flag := WinActive(myGui.hwnd)
+                if flag
+                    toggleGUI()
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                A_Clipboard := ""
+                Send("{ctrl Down}c{ctrl up}")
+                
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                    ; Restore clipboard if prepend operation fails
+                    A_Clipboard := previousClipboard
+                    MsgBox "The attempt to copy text onto the clipboard failed."
+                } else {
+                    A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
+                    SaveClipboardToLogFile()  ; Save the final clipboard state
+                    if chAutoApply.Value 
+                        applyActionCheckboxes()
+                }    
+                
+                if flag
+                    toggleGUI()
+            }
+            
+            CutAppend(*) {
+                global
+                flag := WinActive(myGui.hwnd)
+                if flag
+                    toggleGUI()
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                A_Clipboard := ""
+                Send("{ctrl Down}x{ctrl up}")
+                
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                    ; Restore clipboard if the cut and append operation fails
+                    A_Clipboard := previousClipboard
+                    MsgBox "The attempt to cut and copy text onto the clipboard failed."
+                } else {
+                    A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
+                    SaveClipboardToLogFile()  ; Save the final clipboard state
+                    if chAutoApply.Value 
+                        applyActionCheckboxes()
+                }
+                
+                if flag
+                    toggleGUI()        
+            }
+            
+            Append(*) { 
+                global
+                flag := WinActive(myGui.hwnd)
+                if flag
+                    toggleGUI()
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                A_Clipboard := ""
+                Send("{ctrl Down}c{ctrl up}")
+                
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                    ; Restore clipboard if the append operation fails
+                    A_Clipboard := previousClipboard
+                    MsgBox "The attempt to copy text onto the clipboard failed."
+                } else {
+                    A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
+                    SaveClipboardToLogFile()  ; Save the final clipboard state
+                    if chAutoApply.Value 
+                        applyActionCheckboxes()
+                }
+                
+                if flag
+                    toggleGUI()
+            }
+            
+            Cut(*) {
+                global
+                flag := WinActive(myGui.hwnd)
+                if flag
+                    toggleGUI()
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                A_Clipboard := ""
+                Send("{ctrl Down}x{ctrl up}")
+                
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                    ; Restore clipboard if cut fails
+                    A_Clipboard := previousClipboard
+                    MsgBox "The attempt to cut text from the clipboard failed."
+                } else {
+                    SaveClipboardToLogFile()  ; Save only after cutting
+                    if chAutoApply.Value 
+                        applyActionCheckboxes()
+                }
+                
+                if flag
+                    toggleGUI()
+            }
+            
             Copy(*) {
                 global
                 flag := WinActive(myGui.hwnd)
                 if flag
                     toggleGUI()
-                
-                previousClipboard := A_Clipboard
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
                 A_Clipboard := ""
                 Send("{ctrl Down}c{ctrl up}")
                 
-                if !ClipWait(3) || (ClipboardDatatype = !Datatype_Text) { 
-                    ; A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) { 
+                    ; Restore clipboard if the copy fails
+                    A_Clipboard := previousClipboard
+                    MsgBox "The attempt to copy text onto the clipboard failed."
                 } else {
-                    SaveClipboardToLogFile()
+                    SaveClipboardToLogFile()  ; Save only after copying
                     if chAutoApply.Value 
                         applyActionCheckboxes()
                 }
+                
                 if flag
                     toggleGUI()
             }
@@ -1142,178 +1258,59 @@ Version := "1.0.0"
                 if (ClipboardDatatype != Datatype_Text)
                     return
                 applyActionCheckboxes()
-                SaveClipboardToLogFile()
                 Paste()
                 chAutoApply.Value := tmp
             }
-            Cut(*) {
-                global
-                flag := WinActive(myGui.hwnd)
-                if flag
-                    toggleGUI()
-
-                previousClipboard := A_Clipboard
-                A_Clipboard := ""
-                Send("{ctrl Down}x{ctrl up}")
-                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                    ; A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
-                } else {
-                    SaveClipboardToLogFile()
-                    if chAutoApply.Value 
-                        applyActionCheckboxes()            
-                }
-                if flag
-                    toggleGUI()
-            }
-            Append(*) { 
-                global
-                flag := WinActive(myGui.hwnd)
-                if flag
-                    toggleGUI()
-
-                previousClipboard := A_Clipboard
-                A_Clipboard := ""
-                Send("{ctrl Down}c{ctrl up}")
-                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                    ; A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
-                } else {
-                    A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
+            Input(*) {
+                myGui.opt("-AlwaysOnTop")
+                userInput := InputBox("Enter text to copy:", "Clipboard Input")
+                myGui.opt("+AlwaysOnTop")
             
-                    SaveClipboardToLogFile()  
-                    if chAutoApply.Value 
-                        applyActionCheckboxes()            
+                if userInput.Result = "OK" && userInput.Value != "" {
+                    previousClipboard := A_Clipboard  ; Store the initial clipboard content
+                    A_Clipboard := userInput.Value
+                    SaveClipboardToLogFile()  ; Save only after updating the clipboard
                 }
-                if flag
-                    toggleGUI()
             }
-            CutAppend(*) {
-                global
-                flag := WinActive(myGui.hwnd)
-                if flag
-                    toggleGUI()
-
-                previousClipboard := A_Clipboard        
-                A_Clipboard := ""
-                Send("{ctrl Down}x{ctrl up}")
-                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                    ; A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
-                } else {
-                    A_Clipboard := previousClipboard . selectedSeparator() . A_Clipboard
             
-                    SaveClipboardToLogFile()  
-                    if chAutoApply.Value 
-                        applyActionCheckboxes() 
-                }
-                if flag
-                    toggleGUI()        
-            } 
-            Prepend(*) {
-                global
-                flag := WinActive(myGui.hwnd)
-                if flag
-                    toggleGUI()
-            
-                previousClipboard := A_Clipboard
-                A_Clipboard := ""
-                Send("{ctrl Down}c{ctrl up}")
-                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                    ; A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
-                } else {
-                    A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
-                
-                    SaveClipboardToLogFile()
-                    if chAutoApply.Value 
-                        applyActionCheckboxes()
-                }    
-                if flag
-                    toggleGUI()
-            }
-            CutPrepend(*) {
-                global
-                flag := WinActive(myGui.hwnd)
-                if flag
-                    toggleGUI()
-            
-                previousClipboard := A_Clipboard        
-                A_Clipboard := ""
-                Send("{ctrl Down}x{ctrl up}")
-                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                    ; A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
-                } else {
-                    A_Clipboard := A_Clipboard . selectedSeparator() . previousClipboard
-                
-                    SaveClipboardToLogFile()
-                    if chAutoApply.Value 
-                        applyActionCheckboxes()
-                }       
-                if flag
-                    toggleGUI()        
-            }
-            SaveClipboardToLogFile(*) {
-                global
-                
-                fileName := FormatTime(A_Now, "yyyy-MM-dd-HHmmss")
-                FileAppend(A_Clipboard, historyDir "\" . fileName . ".txt")
-
-                ; Add to history array
-                LogFiles.InsertAt(1, fileName)
-
-                ; If history exceeds the limit, delete the oldest file
-                if (LogFiles.Length > historyLimit) {
-                    oldFile := LogFiles.RemoveAt(LogFiles.Length)  ; Remove from the array (we're storing them in reverse order)
-                    FileDelete(oldFile)                      
-                }
-
-                currentIndex := 1
-                UpdateStatusBar()
-
-                ; Add new file to the top of ListBox
-                lbLogFiles.delete()
-                lbLogFiles.add(LogFiles)
-                lbLogFiles.Choose(1)  
-                LoadSelectedLogFile()
-            }
-            ;@bm
-            SaveModifiedCopy(*){
-                if (currentIndex = 0) {
-                    MsgBox "Please select a file to duplicate."
+            Replace(*) {
+                ; Validate input: Ensure the "Find" field is not empty
+                if (editFind.text = "") {
+                    MsgBox("Error: 'Find' field cannot be empty!", "Input Error", 0x30 0x1000)
                     return
-                }            
-                DuplicateLogFile()
-                editClipboard.Value := A_Clipboard
-                SaveEditClipboardChanges()
-            }
-            Inject(*){
-                global
-                flag := WinActive(myGui.hwnd)
-                if flag
-                    toggleGUI()    previousClipboard := A_Clipboard
-                A_Clipboard := ""
-                Send("{ctrl Down}c{ctrl up}")
-                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
-                    A_Clipboard := previousClipboard
-                    ; MsgBox "The attempt to copy text onto the clipboard failed."
-                } else {
-                    EditPaste A_Clipboard, editClipboard
-                    A_Clipboard := editClipboard.value     
-                    SaveClipboardToLogFile()
                 }
-                if flag
-                    toggleGUI()
+                ; Assign defaults if fields are empty
+                if (editStartingPos.text = "")
+                    editStartingPos.text := "1"
+                if (editLimit.text = "")
+                    editLimit.text := "-1"
+                
+                limit := editLimit.Value + 0
+                startingPos := editStartingPos.Value + 0
+                
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                
+                ; If Regex mode is enabled, use RegExReplace
+                if chRegex.value {
+                    A_Clipboard := RegExReplace(A_Clipboard, editFind.text, editReplace.text, , limit, startingPos)
+                } else {
+                    A_Clipboard := StrReplace(A_Clipboard, editFind.text, editReplace.text, chCaseSensitive.Value, , limit)
+                }
+                
+                if (previousClipboard = A_Clipboard) {
+                    MsgBox("No matches found for '" editFind.text "'!", "No Change", 0x40)
+                }
+                SaveClipboardToLogFile()  ; Save the final clipboard state
             }
+            
+            ;@bm
             Paste(*) {
                 global
                 flag := WinActive(myGui.hwnd)
                 if flag
                     toggleGUI()
             
-                ; Get the selected text from editClipboard
-                originalClipboard := A_Clipboard  ; Store current clipboard
+                originalClipboard := A_Clipboard  ; Store the current clipboard content
                 selectedText := EditGetSelectedText(editClipboard.hwnd)
             
                 if selectedText {
@@ -1322,7 +1319,7 @@ Version := "1.0.0"
                 } else {
                     pasteContent := A_Clipboard
                 }
-                ; Get selected method from DropDownList
+            
                 pasteMethod := ddlPasteMethod.Text
             
                 ; Use the selected method for pasting
@@ -1334,7 +1331,6 @@ Version := "1.0.0"
                     SendInput(pasteContent)  ; Simulate typing
                 }
             
-                ; Handle cycling through history
                 selectedMode := ddlAfterPasteAction.Text
                 if (selectedMode = "Previous") {
                     LoopHistory(1)
@@ -1342,15 +1338,51 @@ Version := "1.0.0"
                     LoopHistory(-1)
                 }
             
-                ; Restore the original clipboard if it was modified
+                ; Restore the original clipboard if it was modified and no cycling is selected
                 if (A_Clipboard != pasteContent and selectedMode = "None") {
-                    ; Sleep 100  ; Give some time for the paste to complete
                     A_Clipboard := originalClipboard
                 }
             
                 if flag
                     toggleGUI()
             }
+            
+            Inject(*) {
+                global
+                flag := WinActive(myGui.hwnd)
+                if flag
+                    toggleGUI()
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                A_Clipboard := ""
+                Send("{ctrl Down}c{ctrl up}")
+            
+                if !ClipWait(3) || (ClipboardDatatype != Datatype_Text) {
+                    A_Clipboard := previousClipboard  ; Restore clipboard if copy fails
+                } else {
+                    EditPaste A_Clipboard, editClipboard
+                    A_Clipboard := editClipboard.value
+                    SaveClipboardToLogFile()
+                }
+            
+                if flag
+                    toggleGUI()
+            }
+            
+            SaveModifiedCopy(*) {
+                if (currentIndex = 0) {
+                    MsgBox "Please select a file to duplicate."
+                    return
+                }
+            
+                previousClipboard := A_Clipboard  ; Store initial clipboard content
+                DuplicateLogFile()
+                editClipboard.Value := A_Clipboard
+                SaveEditClipboardChanges()
+            
+                A_Clipboard := previousClipboard  ; Restore original clipboard if modified
+            }
+            
             Undo(*) {
                 LoopHistory(1)
             }
@@ -1358,20 +1390,25 @@ Version := "1.0.0"
                 LoopHistory(-1)
             }
             LoopHistory(direction) {
-                global 
+                global
                 newIndex := currentIndex + direction
-
+            
                 ; Check if the new index is within valid bounds
                 if (newIndex >= 1 && newIndex <= LogFiles.Length) {
-                    currentIndex := newIndex ;update the global currentIndex
-                    fileToRead := historyDir . "\" . LogFiles[currentIndex] .  ".txt"
+                    currentIndex := newIndex  ; Update the global currentIndex
+                    fileToRead := historyDir . "\" . LogFiles[currentIndex] . ".txt"
+                    previousClipboard := A_Clipboard  ; Store current clipboard
                     A_Clipboard := FileRead(fileToRead)
                     editClipboard.Value := A_Clipboard
                     lbLogFiles.Choose(currentIndex)
+            
+                    ; Restore clipboard if modified
+                    A_Clipboard := previousClipboard
                 } else {
-                    MsgBox("No more history in this direction.",,0x1000)
+                    MsgBox("No more history in this direction.",, 0x1000)
                 }
             }
+            
             selectedSeparator(*) {
                 separator := ddlSeparator.text
                 switch separator {
@@ -1382,12 +1419,19 @@ Version := "1.0.0"
                 }
                 return separator
             }        
-            Translate(*){
+            Translate(*) {
                 target := Languages[ddlTargetLanguage.text]
                 source := Languages[ddlSourceLanguage.text]
+            
+                previousClipboard := A_Clipboard  ; Store original clipboard content
                 translation := Translator.Translate(A_Clipboard, target, source)
                 A_Clipboard := translation
+                SaveClipboardToLogFile()
+            
+                ; Restore the original clipboard if desired
+                A_Clipboard := previousClipboard
             }
+            
 
             ChangeHistoryLimit(*) {
                 global 
@@ -1414,132 +1458,150 @@ Version := "1.0.0"
     ; Remember to add the function name to the actionCheckboxes array at @MODIFY(1)
 {
     ;@BM2
-
-    Transclude(*) { 
-        This := A_Clipboard
+    Transclude(targetText) {
         FileContent := ""        
         FileRegex := "m)^C:\\.*\.(txt|ahk|bas|md|ahk|py|csv|log|ini|config)"
         pos := 1
         counter := 0
-        while (RegExMatch(This, FileRegex, &Match, pos)) {
+        while (RegExMatch(targetText, FileRegex, &Match, pos)) {
             FileName := Match[0]
             if (FileExist(FileName)) {
                 FileContent := FileRead(FileName)
-                This := StrReplace(This, FileName, FileContent)
+                targetText := StrReplace(targetText, FileName, FileContent)
             }
             counter += 1
             pos := Match.Pos + Match.Len
         }
-        A_Clipboard := This
-
+        return targetText
     }
-    BreakLinesToSpaces() {
-        A_Clipboard := StrReplace(A_Clipboard, "`r`n", " ")
+    
+    BreakLinesToSpaces(targetText) {
+        return StrReplace(targetText, "`r`n", " ")
     }
-    ReverseWords() {
-        words := StrSplit(A_Clipboard, " ")
-        A_Clipboard := words.reverse().join(" ") 
+    
+    ReverseWords(targetText) {
+        words := StrSplit(targetText, " ")
+        return words.reverse().join(" ")
     }
-    ToUpperCase() {
-        A_Clipboard := StrUpper(A_Clipboard)
+    
+    ToUpperCase(targetText) {
+        return StrUpper(targetText)
     }
-    ToLowerCase() {
-        A_Clipboard := StrLower(A_Clipboard)
+    
+    ToLowerCase(targetText) {
+        return StrLower(targetText)
     }
-    ToTitleCase() {
-        A_Clipboard := RegExReplace(A_Clipboard, "(\w)(\w*)", "$U1$2")
+    
+    ToTitleCase(targetText) {
+        return RegExReplace(targetText, "(\w)(\w*)", "$U1$2")
     }
-    TrimSpaces() {
-        A_Clipboard := RegExReplace(A_Clipboard, "\s+", " ")
+    
+    TrimSpaces(targetText) {
+        return RegExReplace(targetText, "\s+", " ")
     }
-    SpaceToUnderscore() {
-        A_Clipboard := StrReplace(A_Clipboard, " ", "_")
+    
+    SpaceToUnderscore(targetText) {
+        return StrReplace(targetText, " ", "_")
     }
-    RemoveDigits() {
-        A_Clipboard := RegExReplace(A_Clipboard, "\d", "")
+    
+    RemoveDigits(targetText) {
+        return RegExReplace(targetText, "\d", "")
     }
-    RemoveSpecialChars() {
-        A_Clipboard := RegExReplace(A_Clipboard, "[^\w\s]", "")
+    
+    RemoveSpecialChars(targetText) {
+        return RegExReplace(targetText, "[^\w\s]", "")
     }
-    RemoveHTMLTags() {
-        A_Clipboard := RegExReplace(A_Clipboard, "<.*?>", "")
+    
+    RemoveHTMLTags(targetText) {
+        return RegExReplace(targetText, "<.*?>", "")
     }
-    RemoveExcessLines() {
-        A_Clipboard := RegExReplace(A_Clipboard, "(\n\s*)+", "`n")
+    
+    RemoveExcessLines(targetText) {
+        return RegExReplace(targetText, "(\n\s*)+", "`n")
     }
-    SortAZ() {
-        lines := StrSplit(A_Clipboard, "`r`n") 
+    
+    SortAZ(targetText) {
+        lines := StrSplit(targetText, "`r`n") 
         lines.Sort("C0") 
-        A_Clipboard := lines.join("`r`n") 
+        return lines.join("`r`n")
     }
-    SortZA(){
-        lines := StrSplit(A_Clipboard, "`r`n")
+    
+    SortZA(targetText) {
+        lines := StrSplit(targetText, "`r`n")
         arr := lines.Clone().sort("C0").Reverse()
-        lines:=arr
-        A_Clipboard := lines.join("`r`n") 
+        lines := arr
+        return lines.join("`r`n")
     }
-    SortByLengthAZ(*) {
-        lines := StrSplit(A_Clipboard, "`r`n")
+    
+    SortByLengthAZ(targetText) {
+        lines := StrSplit(targetText, "`r`n")
         lines.sort((a, b) => StrLen(a) - StrLen(b)) 
-        A_Clipboard := lines.join("`r`n")
+        return lines.join("`r`n")
     }
-    SortByLengthZA(*) {
-        lines := StrSplit(A_Clipboard, "`r`n")
+    
+    SortByLengthZA(targetText) {
+        lines := StrSplit(targetText, "`r`n")
         lines.sort((a, b) => StrLen(a) - StrLen(b)) 
         lines.Reverse()
-        A_Clipboard := lines.join("`r`n")
-    } 
-    ExtractByRegex(pattern){
+        return lines.join("`r`n")
+    }
+    
+    ExtractByRegex(targetText, pattern) {
         items := []
         pos := 1
-        while (RegExMatch(A_Clipboard, pattern, &Match, pos)) {
+        while (RegExMatch(targetText, pattern, &Match, pos)) {
             items.Push(match[0])
             pos := Match.Pos + Match.Len
         }
-        A_Clipboard := items.Length ? items.join("`n") : "No items found"
-    }
-    ExtractEmails() {
-        pattern := "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
-        ExtractByRegex(pattern)
-    }
-    ExtractPhoneNumbers() {
-        pattern := "\+?\d{1,3}[\s-]?(\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}"
-        ExtractByRegex(pattern)
-    }
-    ExtractWebsites() {
-        pattern := "\b(?:https?://|www\.)[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\S*)\b"
-        ExtractByRegex(pattern)
+        return items.Length ? items.join("`n") : "No items found"
     }
     
-    AddTimestamp() {
-        A_Clipboard := A_Now . "`n" . A_Clipboard
+    ExtractEmails(targetText) {
+        pattern := "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+        return ExtractByRegex(targetText, pattern)
     }
-    NumberedList() {
+    
+    ExtractPhoneNumbers(targetText) {
+        pattern := "\+?\d{1,3}[\s-]?(\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}"
+        return ExtractByRegex(targetText, pattern)
+    }
+    
+    ExtractWebsites(targetText) {
+        pattern := "\b(?:https?://|www\.)[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\S*)\b"
+        return ExtractByRegex(targetText, pattern)
+    }
+    
+    AddTimestamp(targetText) {
+        return A_Now . "`n" . targetText
+    }
+    
+    NumberedList(targetText) {
         newText := ""
-        index:=1
-        Loop Parse, A_Clipboard, "`n", "`r"{
-            if (A_LoopField != "")  {
+        index := 1
+        Loop Parse, targetText, "`n", "`r" {
+            if (A_LoopField != "") {
                 newText .= index ". " . A_LoopField . "`r`n"
                 index++
-            }else{
+            } else {
                 newText .= "`r`n"   
-                index:=1
+                index := 1
             }
         }
-        A_Clipboard := Trim(newText, "`r`n")  
+        return Trim(newText, "`r`n")
     }
-    BulletList() {
+    
+    BulletList(targetText) {
         newText := ""
-        index:=1
-        Loop Parse, A_Clipboard, "`n", "`r"{
-            if (A_LoopField != "")  {
-                newText .=  "• " . A_LoopField . "`r`n"
-            }else{
+        Loop Parse, targetText, "`n", "`r" {
+            if (A_LoopField != "") {
+                newText .= "• " . A_LoopField . "`r`n"
+            } else {
                 newText .= "`r`n"   
             }
         }
-        A_Clipboard := Trim(newText, "`r`n")  
+        return Trim(newText, "`r`n")
     }
+    
 
 
 }

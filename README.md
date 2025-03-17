@@ -17,7 +17,7 @@
 - Remember selected options  
 
 
-<p>For advanced clipboard management, consider using <a href='https://hluk.github.io/CopyQ/' target='_blank'>CopyQ</a>.</p>
+<p>For other advanced clipboard management, consider using <a href='https://hluk.github.io/CopyQ/' target='_blank'>CopyQ</a> or <a href='https://www.sttmedia.com/clipboardsaver' target='_blank'>ClipboardSaver</a></p>
 <p>For advanced translator with ocr, consider using <a href='https://apps.kde.org/en-gb/crowtranslate/' target='blank'>Crow Translate</a>.</p>
 
 ![epadQhB9Dz](https://github.com/user-attachments/assets/62b8fa58-b272-4266-b3e2-53e817f45757)  
